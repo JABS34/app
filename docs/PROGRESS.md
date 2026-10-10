@@ -22,7 +22,7 @@ Updated: 2026-10-09
 - Zombie Survival prototype generation now assigns landscape orientation to that scene while the launcher remains portrait.
 - Zombie Survival movement uses camera-relative forward/right directions, and its follow camera stays behind the character as the character turns.
 - The Zombie Survival scene builder creates a provisional horde loop: 60 seconds of initial preparation, an easy first wave of three zombies, then a three-minute break after each cleared wave. Later waves add enemies and raise health and speed gradually. The HUD shows the round state/countdown. The player can attack using the touch button or Space in the Editor.
-- Defeated zombies drop provisional wood or scrap. A small starting supply is available during the initial preparation period. Players collect nearby resources with the contextual action button (or E in the Editor); a simple local counter displays totals. The full inventory, gathering nodes, tree chopping, crafting, and shelter are not implemented yet.
+- Ground resources now cover the five concept materials: wood, stone, fiber, scrap, and food. Trees can be chopped in three interactions and drop wood. One contextual button switches between `RECOGER`, `TALAR`, and `ATACAR`; E performs the same interaction in the Editor. A simple local counter displays collected totals. This is not yet the planned 12-slot inventory, crafting, or shelter.
 - The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
 - Unity editor menu `BERNEOX > Crear inicio y catálogo` opens the existing hub scene, or creates it if missing.
 
@@ -35,7 +35,7 @@ Updated: 2026-10-09
 
 ## Prioritized next tasks
 
-1. Add ground resource gathering, tree chopping, and the first inventory so the player can prepare between hordes.
-2. Add basic crafting and shelter defenses, then tune round difficulty and the full survival loop through play.
-3. Run `ZombiePrototype` in Unity to verify the horde timing, HUD, enemy spawning, camera, and touch controls.
-4. Run the launcher and connect Zombie Survival to it once the mode has been visually checked and feels playable.
+1. Add a simple inventory with stacks and capacity rules, then use the gathered materials in basic crafting.
+2. Add a shelter players can build, reinforce, and repair between hordes.
+3. Run `ZombiePrototype` in Unity to verify resource gathering, tree chopping, horde timing, HUD, enemy spawning, camera, and touch controls.
+4. Tune round difficulty and connect Zombie Survival to the launcher after the mode has been visually checked and feels playable.

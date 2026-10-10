@@ -13,15 +13,13 @@ public sealed class PrototypeResourcePickup : MonoBehaviour
     public static PrototypeResourcePickup Spawn(Vector3 position, PrototypeResourceType type, int count)
     {
         GameObject pickup = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        pickup.name = type == PrototypeResourceType.Wood ? "Recurso_Madera" : "Recurso_Chatarra";
+        pickup.name = "Recurso_" + type;
         pickup.transform.position = position + Vector3.up * 0.45f;
         pickup.transform.localScale = Vector3.one * 0.48f;
         Collider collider = pickup.GetComponent<Collider>();
         collider.isTrigger = true;
         Renderer renderer = pickup.GetComponent<Renderer>();
-        Color color = type == PrototypeResourceType.Wood
-            ? new Color(0.76f, 0.44f, 0.2f)
-            : new Color(0.58f, 0.68f, 0.76f);
+        Color color = GetResourceColor(type);
         Material material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
         material.color = color;
         if (material.HasProperty("_EmissionColor"))
@@ -34,6 +32,18 @@ public sealed class PrototypeResourcePickup : MonoBehaviour
         component.resourceType = type;
         component.amount = Mathf.Max(1, count);
         return component;
+    }
+
+    public static Color GetResourceColor(PrototypeResourceType type)
+    {
+        switch (type)
+        {
+            case PrototypeResourceType.Wood: return new Color(0.76f, 0.44f, 0.2f);
+            case PrototypeResourceType.Stone: return new Color(0.62f, 0.66f, 0.72f);
+            case PrototypeResourceType.Fiber: return new Color(0.53f, 0.78f, 0.42f);
+            case PrototypeResourceType.Food: return new Color(0.93f, 0.3f, 0.34f);
+            default: return new Color(0.58f, 0.68f, 0.76f);
+        }
     }
 
     private void Awake() => basePosition = transform.position;

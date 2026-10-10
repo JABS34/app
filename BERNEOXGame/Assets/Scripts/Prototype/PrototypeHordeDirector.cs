@@ -9,8 +9,8 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
     [SerializeField, Min(1)] private int firstHordeSize = 3;
     [SerializeField, Min(0)] private int extraZombiesPerRound = 2;
 
-    private PrototypePlayerHealth player;
-    private GameObject zombieTemplate;
+    [SerializeField] private PrototypePlayerHealth player;
+    [SerializeField] private GameObject zombieTemplate;
     private bool started;
     private bool hordeActive;
     private float nextHordeAt;

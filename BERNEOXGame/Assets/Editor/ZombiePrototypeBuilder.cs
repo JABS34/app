@@ -19,7 +19,7 @@ public static class ZombiePrototypeBuilder
             EditorUtility.DisplayDialog("Prototipo listo", "Se abrió la escena ZombiePrototype existente sin modificarla.", "Aceptar");
             return;
         }
-        if (!EditorUtility.DisplayDialog("Crear prototipo", "Se creará la escena ZombiePrototype con cuatro zombis de prueba, vida y botón de ataque. SampleScene y el inicio BERNEOX se conservarán.", "Crear", "Cancelar")) return;
+        if (!EditorUtility.DisplayDialog("Crear prototipo", "Se creará la escena ZombiePrototype con bosque, recursos recolectables, árboles talables y rondas de zombis. SampleScene y el inicio BERNEOX se conservarán.", "Crear", "Cancelar")) return;
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         scene.name = "ZombiePrototype";
@@ -72,6 +72,17 @@ public static class ZombiePrototypeBuilder
         hordeDirector.Initialize(playerHealth, zombieTemplate);
         PrototypeResourcePickup.Spawn(new Vector3(2f, 0f, 1.5f), PrototypeResourceType.Wood, 3);
         PrototypeResourcePickup.Spawn(new Vector3(-2f, 0f, 2f), PrototypeResourceType.Scrap, 1);
+        PrototypeResourcePickup.Spawn(new Vector3(-1f, 0f, 3f), PrototypeResourceType.Stone, 2);
+        PrototypeResourcePickup.Spawn(new Vector3(1f, 0f, 3.5f), PrototypeResourceType.Fiber, 2);
+        PrototypeResourcePickup.Spawn(new Vector3(0f, 0f, 4f), PrototypeResourceType.Food, 1);
+        Material treeBark = CreateMaterial("TreeBark", new Color(0.30f, 0.17f, 0.12f));
+        Material treeCanopy = CreateMaterial("TreeCanopy", new Color(0.15f, 0.32f, 0.2f));
+        CreateTree(new Vector3(-22f, 0f, 5f), treeBark, treeCanopy);
+        CreateTree(new Vector3(21f, 0f, 7f), treeBark, treeCanopy);
+        CreateTree(new Vector3(-26f, 0f, 17f), treeBark, treeCanopy);
+        CreateTree(new Vector3(24f, 0f, 18f), treeBark, treeCanopy);
+        CreateTree(new Vector3(-30f, 0f, 3f), treeBark, treeCanopy);
+        CreateTree(new Vector3(30f, 0f, 8f), treeBark, treeCanopy);
         new GameObject("Scene Orientation").AddComponent<BerneoxSceneOrientation>().SetOrientation(ScreenOrientation.LandscapeLeft);
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
         PlayerSettings.allowedAutorotateToPortrait = true;
@@ -115,6 +126,23 @@ public static class ZombiePrototypeBuilder
         PrototypeZombieEnemy enemy = zombie.AddComponent<PrototypeZombieEnemy>();
         enemy.Initialize(target, visual);
         return zombie;
+    }
+
+    private static GameObject CreateTree(Vector3 position, Material barkMaterial, Material canopyMaterial)
+    {
+        GameObject tree = new GameObject("Resource_Tree");
+        tree.transform.position = position;
+        CapsuleCollider trunkCollider = tree.AddComponent<CapsuleCollider>();
+        trunkCollider.center = new Vector3(0f, 2.1f, 0f);
+        trunkCollider.height = 4.2f;
+        trunkCollider.radius = 0.48f;
+        Transform visuals = new GameObject("Tree Visuals").transform;
+        visuals.SetParent(tree.transform, false);
+        CreatePart(PrimitiveType.Cylinder, "Trunk", visuals, new Vector3(0f, 2f, 0f), new Vector3(0.42f, 2f, 0.42f), barkMaterial);
+        CreatePart(PrimitiveType.Sphere, "Canopy", visuals, new Vector3(0f, 4.4f, 0f), new Vector3(3.2f, 3f, 3.2f), canopyMaterial);
+        CreatePart(PrimitiveType.Sphere, "Canopy Crown", visuals, new Vector3(0f, 5.8f, 0f), new Vector3(2.2f, 2.3f, 2.2f), canopyMaterial);
+        tree.AddComponent<PrototypeTreeNode>().Initialize(visuals);
+        return tree;
     }
 
     private static Transform CreatePart(PrimitiveType type, string name, Transform parent, Vector3 position,

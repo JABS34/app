@@ -18,5 +18,8 @@ public sealed class PrototypeResourceInventory : MonoBehaviour
 public enum PrototypeResourceType
 {
     Wood,
-    Scrap
+    Stone,
+    Fiber,
+    Scrap,
+    Food
 }

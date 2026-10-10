@@ -68,9 +68,13 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         displayedHealth = Mathf.MoveTowards(displayedHealth, target, Time.unscaledDeltaTime * 1.7f);
         healthFill.fillAmount = displayedHealth;
         healthFill.color = Color.Lerp(Coral, Mint, Mathf.InverseLerp(0.12f, 0.9f, displayedHealth));
-        if (attackLabel != null) attackLabel.text = pickupInteractor != null && pickupInteractor.CanCollect ? "RECOGER" : "ATACAR";
+        if (attackLabel != null) attackLabel.text = pickupInteractor != null ? pickupInteractor.ActionLabel : "ATACAR";
         if (resourceCount != null && inventory != null)
-            resourceCount.text = "MADERA  " + inventory.GetAmount(PrototypeResourceType.Wood) + "     CHATARRA  " + inventory.GetAmount(PrototypeResourceType.Scrap);
+            resourceCount.text = "MADERA " + inventory.GetAmount(PrototypeResourceType.Wood)
+                + "   PIEDRA " + inventory.GetAmount(PrototypeResourceType.Stone)
+                + "   FIBRA " + inventory.GetAmount(PrototypeResourceType.Fiber)
+                + "   CHATARRA " + inventory.GetAmount(PrototypeResourceType.Scrap)
+                + "   COMIDA " + inventory.GetAmount(PrototypeResourceType.Food);
         if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
     }
 
@@ -98,11 +102,11 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private void BuildResourceCounter(RectTransform root)
     {
         RectTransform panel = NewRect(root, "Resource Counter Panel");
-        Anchor(panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(42f, -150f), new Vector2(430f, 62f));
+        Anchor(panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(42f, -150f), new Vector2(640f, 62f));
         Image background = panel.gameObject.AddComponent<Image>();
         background.color = Ink;
         background.raycastTarget = false;
-        resourceCount = MakeText(panel, "Resource Counter", "MADERA  0     CHATARRA  0", 18, FontStyle.Bold, Color.white);
+        resourceCount = MakeText(panel, "Resource Counter", "MADERA 0   PIEDRA 0   FIBRA 0   CHATARRA 0   COMIDA 0", 15, FontStyle.Bold, Color.white);
         resourceCount.alignment = TextAnchor.MiddleCenter;
         Anchor(resourceCount.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-20f, -8f));
     }
@@ -193,7 +197,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
 
     private void OnAttackPressed()
     {
-        if (pickupInteractor != null && pickupInteractor.CollectNearby()) return;
+        if (pickupInteractor != null && pickupInteractor.InteractNearby()) return;
         if (meleeAttack != null && meleeAttack.enabled) meleeAttack.Attack();
     }
 
