@@ -87,6 +87,10 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
         defeated = true;
         controller.enabled = false;
         foreach (Renderer renderer in GetComponentsInChildren<Renderer>()) renderer.enabled = false;
+        PrototypeResourceType dropType = UnityEngine.Random.value < 0.5f
+            ? PrototypeResourceType.Wood
+            : PrototypeResourceType.Scrap;
+        PrototypeResourcePickup.Spawn(transform.position, dropType, UnityEngine.Random.Range(1, 4));
         Defeated?.Invoke(this);
         Destroy(gameObject, 0.2f);
     }

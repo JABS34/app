@@ -11,9 +11,13 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private static Sprite circleSprite;
     private PrototypePlayerHealth playerHealth;
     private PrototypeMeleeAttack meleeAttack;
+    private PrototypePickupInteractor pickupInteractor;
+    private PrototypeResourceInventory inventory;
     private Image healthFill;
     private Text healthValue;
     private Text zombieCount;
+    private Text resourceCount;
+    private Text attackLabel;
     private Button attackButton;
     private RectTransform attackButtonRect;
     private CanvasGroup defeatOverlay;
@@ -30,6 +34,8 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     {
         playerHealth = FindAnyObjectByType<PrototypePlayerHealth>();
         meleeAttack = FindAnyObjectByType<PrototypeMeleeAttack>();
+        pickupInteractor = FindAnyObjectByType<PrototypePickupInteractor>();
+        inventory = FindAnyObjectByType<PrototypeResourceInventory>();
         if (playerHealth == null || meleeAttack == null)
         {
             Debug.LogError("Combat HUD needs a player health component and melee attack component.");
@@ -67,6 +73,9 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         displayedHealth = Mathf.MoveTowards(displayedHealth, target, Time.unscaledDeltaTime * 1.7f);
         healthFill.fillAmount = displayedHealth;
         healthFill.color = Color.Lerp(Coral, Mint, Mathf.InverseLerp(0.12f, 0.9f, displayedHealth));
+        if (attackLabel != null) attackLabel.text = pickupInteractor != null && pickupInteractor.CanCollect ? "RECOGER" : "ATACAR";
+        if (resourceCount != null && inventory != null)
+            resourceCount.text = "MADERA  " + inventory.GetAmount(PrototypeResourceType.Wood) + "     CHATARRA  " + inventory.GetAmount(PrototypeResourceType.Scrap);
     }
 
     private void BuildInterface()
@@ -86,7 +95,20 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         RectTransform root = canvasObject.GetComponent<RectTransform>();
         BuildHealthPanel(root);
         BuildZombieCounter(root);
+        BuildResourceCounter(root);
         BuildAttackButton(root);
+    }
+
+    private void BuildResourceCounter(RectTransform root)
+    {
+        RectTransform panel = NewRect(root, "Resource Counter Panel");
+        Anchor(panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(42f, -150f), new Vector2(430f, 62f));
+        Image background = panel.gameObject.AddComponent<Image>();
+        background.color = Ink;
+        background.raycastTarget = false;
+        resourceCount = MakeText(panel, "Resource Counter", "MADERA  0     CHATARRA  0", 18, FontStyle.Bold, Color.white);
+        resourceCount.alignment = TextAnchor.MiddleCenter;
+        Anchor(resourceCount.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-20f, -8f));
     }
 
     private void BuildHealthPanel(RectTransform root)
@@ -168,13 +190,14 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         attackButton.colors = colors;
         attackButton.onClick.AddListener(OnAttackPressed);
 
-        Text label = MakeText(buttonObject.transform, "Attack Label", "ATACAR", 27, FontStyle.Bold, Color.white);
-        label.alignment = TextAnchor.MiddleCenter;
-        Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-16f, -16f));
+        attackLabel = MakeText(buttonObject.transform, "Attack Label", "ATACAR", 25, FontStyle.Bold, Color.white);
+        attackLabel.alignment = TextAnchor.MiddleCenter;
+        Anchor(attackLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-16f, -16f));
     }
 
     private void OnAttackPressed()
     {
+        if (pickupInteractor != null && pickupInteractor.CollectNearby()) return;
         if (meleeAttack != null && meleeAttack.enabled) meleeAttack.Attack();
     }
 

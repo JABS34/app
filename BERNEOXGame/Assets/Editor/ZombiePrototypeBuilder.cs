@@ -42,6 +42,8 @@ public static class ZombiePrototypeBuilder
         player.AddComponent<PrototypePlayerController>();
         PrototypePlayerHealth playerHealth = player.AddComponent<PrototypePlayerHealth>();
         player.AddComponent<PrototypeMeleeAttack>();
+        player.AddComponent<PrototypeResourceInventory>();
+        player.AddComponent<PrototypePickupInteractor>();
 
         var cameraObject = new GameObject("Main Camera");
         cameraObject.tag = "MainCamera";
