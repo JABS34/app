@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,7 +11,9 @@ public static class ZombiePrototypeVisualUpgrade
 {
     private const string ScenePath = "Assets/Scenes/ZombiePrototype.unity";
     private const string MarkerName = "APOCALYPTIC_SCENE_DRESSING";
+    private const string VillageMarkerName = "APOCALYPTIC_VILLAGE_DETAILS_V2";
     private static Mesh coneMesh;
+    private static Mesh grassMesh;
     private static readonly Dictionary<Color, Material> Materials = new Dictionary<Color, Material>();
 
     static ZombiePrototypeVisualUpgrade()
@@ -34,10 +37,19 @@ public static class ZombiePrototypeVisualUpgrade
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         Scene scene = SceneManager.GetActiveScene();
-        if (scene.path != ScenePath || scene.isDirty || HasUpgradeMarker(scene)) return;
-        UpgradeScene(scene);
-        EditorSceneManager.SaveScene(scene, ScenePath);
-        Debug.Log("Zombie Survival: escenario nocturno apocalíptico aplicado al prototipo.");
+        if (scene.path != ScenePath || scene.isDirty) return;
+        if (!HasUpgradeMarker(scene))
+        {
+            UpgradeScene(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: escenario nocturno apocalíptico aplicado al prototipo.");
+        }
+        else if (!HasVillagePass(scene))
+        {
+            AddVillageDetails(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: poblado abandonado, vegetación y ambiente animado añadidos.");
+        }
     }
 
     [MenuItem("BERNEOX/Actualizar escenario apocalíptico")]
@@ -67,7 +79,7 @@ public static class ZombiePrototypeVisualUpgrade
 
         ConfigureNightLighting();
         GameObject ground = GameObject.Find("Ground_Prototype");
-        if (ground != null) ground.GetComponent<Renderer>().sharedMaterial = Material(new Color(0.095f, 0.12f, 0.11f));
+        if (ground != null) ground.GetComponent<Renderer>().sharedMaterial = Material(new Color(0.15f, 0.17f, 0.16f));
 
         GameObject player = GameObject.Find("Player_Prototype");
         PrototypePlayerHealth playerHealth = player != null ? player.GetComponent<PrototypePlayerHealth>() : null;
@@ -118,7 +130,7 @@ public static class ZombiePrototypeVisualUpgrade
 
     private static PrototypeZombieEnemy FindZombieTemplate()
     {
-        foreach (PrototypeZombieEnemy enemy in Object.FindObjectsByType<PrototypeZombieEnemy>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (PrototypeZombieEnemy enemy in Object.FindObjectsByType<PrototypeZombieEnemy>(FindObjectsInactive.Include))
             if (enemy != null && enemy.name == "Zombie_Wave_Template") return enemy;
         return null;
     }
@@ -126,20 +138,20 @@ public static class ZombiePrototypeVisualUpgrade
     private static void ConfigureNightLighting()
     {
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.11f, 0.14f, 0.20f);
+        RenderSettings.ambientLight = new Color(0.19f, 0.22f, 0.29f);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Linear;
-        RenderSettings.fogColor = new Color(0.035f, 0.055f, 0.09f);
-        RenderSettings.fogStartDistance = 22f;
-        RenderSettings.fogEndDistance = 82f;
+        RenderSettings.fogColor = new Color(0.075f, 0.095f, 0.13f);
+        RenderSettings.fogStartDistance = 34f;
+        RenderSettings.fogEndDistance = 102f;
 
         GameObject cameraObject = GameObject.Find("Main Camera");
         if (cameraObject != null)
         {
             Camera camera = cameraObject.GetComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.025f, 0.04f, 0.075f);
-            camera.farClipPlane = 95f;
+            camera.backgroundColor = new Color(0.055f, 0.075f, 0.11f);
+            camera.farClipPlane = 115f;
             camera.fieldOfView = 66f;
         }
 
@@ -148,7 +160,7 @@ public static class ZombiePrototypeVisualUpgrade
         {
             Light light = moonLight.GetComponent<Light>();
             light.color = new Color(0.54f, 0.65f, 0.9f);
-            light.intensity = 0.48f;
+            light.intensity = 0.68f;
             light.shadows = LightShadows.Soft;
             moonLight.transform.rotation = Quaternion.Euler(34f, -28f, 0f);
         }
@@ -260,7 +272,7 @@ public static class ZombiePrototypeVisualUpgrade
         Random.State previousRandom = Random.state;
         Random.InitState(3609);
 
-        foreach (PrototypeTreeNode existing in Object.FindObjectsByType<PrototypeTreeNode>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (PrototypeTreeNode existing in Object.FindObjectsByType<PrototypeTreeNode>(FindObjectsInactive.Include))
         {
             Transform visuals = existing.transform.Find("Tree Visuals");
             if (visuals == null || visuals.Find("Pine Canopy Upgrade") != null) continue;
@@ -448,15 +460,20 @@ public static class ZombiePrototypeVisualUpgrade
 
     private static void UpgradeResourceVisuals()
     {
-        foreach (PrototypeResourcePickup pickup in Object.FindObjectsByType<PrototypeResourcePickup>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (PrototypeResourcePickup pickup in Object.FindObjectsByType<PrototypeResourcePickup>(FindObjectsInactive.Include))
             if (pickup != null) pickup.RefreshVisual();
     }
 
     private static void MarkEnvironmentStatic(Transform root)
     {
         Transform[] descendants = root.GetComponentsInChildren<Transform>(true);
+        PrototypeApocalypseMotion motion = root.GetComponentInParent<PrototypeApocalypseMotion>();
+        HashSet<Transform> animated = new HashSet<Transform>();
+        if (motion != null && motion.AnimatedTransforms != null)
+            foreach (Transform target in motion.AnimatedTransforms) if (target != null) animated.Add(target);
         foreach (Transform child in descendants)
-            GameObjectUtility.SetStaticEditorFlags(child.gameObject, StaticEditorFlags.BatchingStatic);
+            if (!animated.Contains(child) && child.GetComponent<ParticleSystem>() == null)
+                GameObjectUtility.SetStaticEditorFlags(child.gameObject, StaticEditorFlags.BatchingStatic);
     }
 
     private static void CreateCrate(Transform parent, Vector3 position, Material wood)
@@ -467,6 +484,498 @@ public static class ZombiePrototypeVisualUpgrade
         Block(crate, "Crate body", Vector3.zero, new Vector3(0.9f, 0.8f, 0.9f), wood);
         Block(crate, "Crate front brace", new Vector3(0f, 0f, 0.47f), new Vector3(0.88f, 0.12f, 0.06f), dark, new Vector3(0f, 0f, 35f));
         Block(crate, "Crate lid brace", new Vector3(0f, 0.41f, 0f), new Vector3(0.9f, 0.1f, 0.1f), dark);
+    }
+
+    [MenuItem("BERNEOX/Completar poblado apocalíptico y ambiente")]
+    private static void AddVillageDetailsFromMenu()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        if (scene.path != ScenePath)
+        {
+            EditorUtility.DisplayDialog("Zombie Survival", "Abre Assets/Scenes/ZombiePrototype.unity.", "Aceptar");
+            return;
+        }
+        if (!HasUpgradeMarker(scene)) UpgradeScene(scene);
+        if (!HasVillagePass(scene)) AddVillageDetails(scene);
+        EditorSceneManager.SaveScene(scene, ScenePath);
+    }
+
+    private static bool HasVillagePass(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+            if (root.name == VillageMarkerName) return true;
+        return false;
+    }
+
+    private static void AddVillageDetails(Scene scene)
+    {
+        Random.State previousRandom = Random.state;
+        Random.InitState(10102026);
+        GameObject dressing = new GameObject(VillageMarkerName);
+        SceneManager.MoveGameObjectToScene(dressing, scene);
+        Transform root = dressing.transform;
+
+        Material plaster = SurfaceMaterial("WeatheredPlaster", new Color(0.71f, 0.65f, 0.52f), SurfaceKind.Plaster);
+        Material fadedPlaster = SurfaceMaterial("FadedCementPlaster", new Color(0.49f, 0.50f, 0.46f), SurfaceKind.Plaster);
+        Material roof = SurfaceMaterial("CharredRoof", new Color(0.46f, 0.43f, 0.38f), SurfaceKind.Roof);
+        Material tile = SurfaceMaterial("BrokenTerracotta", new Color(0.68f, 0.39f, 0.25f), SurfaceKind.Brick);
+        Material timber = SurfaceMaterial("AgedTimber", new Color(0.55f, 0.37f, 0.24f), SurfaceKind.Wood);
+        Material darkWood = SurfaceMaterial("SootBlackenedWood", new Color(0.36f, 0.27f, 0.20f), SurfaceKind.Wood);
+        Material glass = Material(new Color(0.035f, 0.075f, 0.09f));
+        Material rust = SurfaceMaterial("FlakingRust", new Color(0.62f, 0.29f, 0.17f), SurfaceKind.Rust);
+        Material concrete = SurfaceMaterial("CrackedConcrete", new Color(0.58f, 0.59f, 0.55f), SurfaceKind.Concrete);
+
+        BuildRuralHouse(root, "Ransacked Farmhouse", new Vector3(-10f, 0f, 34f), plaster, roof, timber, darkWood, glass, tile, true);
+        BuildRuralHouse(root, "Abandoned Roadside Shop", new Vector3(10f, 0f, 39f), fadedPlaster, roof, timber, darkWood, glass, tile, false);
+        BuildRuinedShell(root, "Collapsed Checkpoint", new Vector3(-1f, 0f, 50f), concrete, timber, darkWood);
+        AddBrokenFence(root, new Vector3(-4f, 0f, 23f), 11, timber, darkWood, -1);
+        AddBrokenFence(root, new Vector3(4f, 0f, 27f), 9, timber, darkWood, 1);
+        AddRoadAndGround(root, concrete, darkWood, rust);
+        AddStreetPropDetails(root, timber, darkWood, rust, concrete);
+        Transform[] grass = AddTallGrass(root);
+        AddAshFall(root);
+        Light fire = GameObject.Find("Low campfire glow")?.GetComponent<Light>();
+        Light streetlamp = GameObject.Find("Street lamp intermittent glow")?.GetComponent<Light>();
+        PrototypeApocalypseMotion motion = dressing.AddComponent<PrototypeApocalypseMotion>();
+        motion.Configure(grass, fire, streetlamp != null ? new[] { streetlamp } : new Light[0]);
+        AddSurvivalToolsToPlayer();
+
+        MarkEnvironmentStatic(root);
+        Random.state = previousRandom;
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private enum SurfaceKind { Plaster, Roof, Brick, Wood, Rust, Concrete, Asphalt, Mud }
+
+    private static Material SurfaceMaterial(string name, Color tint, SurfaceKind kind)
+    {
+        const string artFolder = "Assets/Art";
+        const string surfaceFolder = "Assets/Art/Apocalypse";
+        if (!AssetDatabase.IsValidFolder(artFolder)) AssetDatabase.CreateFolder("Assets", "Art");
+        if (!AssetDatabase.IsValidFolder(surfaceFolder)) AssetDatabase.CreateFolder(artFolder, "Apocalypse");
+
+        string materialPath = surfaceFolder + "/M_" + name + ".mat";
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        if (material != null) return material;
+
+        string texturePath = surfaceFolder + "/T_" + name + ".png";
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+        if (texture == null)
+        {
+            Texture2D generated = GenerateSurfaceTexture(name, tint, kind, 512);
+            File.WriteAllBytes(Path.GetFullPath(texturePath), generated.EncodeToPNG());
+            Object.DestroyImmediate(generated);
+            AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceSynchronousImport);
+            texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            if (texture != null)
+            {
+                TextureImporter importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+                if (importer != null)
+                {
+                    importer.wrapMode = TextureWrapMode.Repeat;
+                    importer.filterMode = FilterMode.Bilinear;
+                    importer.anisoLevel = 4;
+                    importer.SaveAndReimport();
+                }
+            }
+        }
+
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        if (shader == null) return Material(tint);
+        material = new Material(shader) { name = "M_" + name, color = Color.white };
+        if (texture != null) material.mainTexture = texture;
+        float tiling = kind == SurfaceKind.Asphalt || kind == SurfaceKind.Mud ? 3.2f : kind == SurfaceKind.Wood ? 1.5f : 2.1f;
+        material.mainTextureScale = new Vector2(tiling, tiling);
+        AssetDatabase.CreateAsset(material, materialPath);
+        return material;
+    }
+
+    private static Texture2D GenerateSurfaceTexture(string name, Color tint, SurfaceKind kind, int size)
+    {
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, true)
+        {
+            name = "T_" + name,
+            wrapMode = TextureWrapMode.Repeat,
+            filterMode = FilterMode.Bilinear,
+            anisoLevel = 4
+        };
+        Color[] pixels = new Color[size * size];
+        int stableHash = 17;
+        foreach (char character in name) stableHash = stableHash * 31 + character;
+        float seed = Mathf.Abs(stableHash % 10000) * 0.0137f;
+        for (int y = 0; y < size; y++)
+        for (int x = 0; x < size; x++)
+        {
+            float u = x / (float)size;
+            float v = y / (float)size;
+            float broad = Mathf.PerlinNoise(u * 5.5f + seed, v * 5.5f + seed * 0.7f);
+            float fine = Mathf.PerlinNoise(u * 42f + seed * 2f, v * 42f + seed * 1.3f);
+            float grain = Mathf.PerlinNoise(u * 4f + seed * 0.5f, v * 68f + seed);
+            float shade = 0.78f + broad * 0.28f + fine * 0.10f;
+
+            if (kind == SurfaceKind.Brick || kind == SurfaceKind.Roof)
+            {
+                int rows = kind == SurfaceKind.Brick ? 13 : 16;
+                int columns = kind == SurfaceKind.Brick ? 9 : 12;
+                float row = v * rows;
+                float offset = ((int)row % 2) * 0.5f;
+                float cellX = Mathf.Repeat(u * columns + offset, 1f);
+                float cellY = Mathf.Repeat(row, 1f);
+                bool mortar = cellX < (kind == SurfaceKind.Brick ? 0.035f : 0.022f)
+                    || cellY < (kind == SurfaceKind.Brick ? 0.055f : 0.04f);
+                shade = mortar ? 0.47f + fine * 0.18f : 0.72f + broad * 0.42f + fine * 0.12f;
+            }
+            else if (kind == SurfaceKind.Wood)
+                shade = 0.62f + grain * 0.53f + Mathf.Sin((u * 18f + broad * 0.16f) * Mathf.PI * 2f) * 0.07f;
+            else if (kind == SurfaceKind.Rust)
+                shade = 0.45f + broad * 0.88f + (fine > 0.72f ? 0.20f : 0f);
+            else if (kind == SurfaceKind.Concrete || kind == SurfaceKind.Plaster)
+                shade = 0.67f + broad * 0.42f + fine * 0.15f - Mathf.Pow(Mathf.PerlinNoise(u * 8f + seed, v * 2.1f + seed), 5f) * 0.20f;
+            else if (kind == SurfaceKind.Asphalt)
+                shade = 0.50f + broad * 0.40f + fine * 0.12f - (fine > 0.79f ? 0.12f : 0f);
+            else if (kind == SurfaceKind.Mud)
+                shade = 0.58f + broad * 0.43f + fine * 0.15f;
+
+            pixels[y * size + x] = new Color(tint.r * shade, tint.g * shade, tint.b * shade, 1f);
+        }
+        texture.SetPixels(pixels);
+        texture.Apply(true, false);
+        return texture;
+    }
+
+    private static void BuildRuralHouse(Transform parent, string name, Vector3 position, Material plaster,
+        Material roof, Material timber, Material darkWood, Material glass, Material tiles, bool farmhouse)
+    {
+        Transform house = ChildRoot(parent, name);
+        house.position = position;
+        float width = farmhouse ? 8.5f : 9.2f;
+        float depth = farmhouse ? 7.0f : 8.0f;
+        float halfW = width * 0.5f;
+        float halfD = depth * 0.5f;
+        Material brick = Material(new Color(0.31f, 0.16f, 0.11f));
+        Material board = Material(new Color(0.20f, 0.16f, 0.12f));
+
+        Block(house, "Stone foundation", new Vector3(0f, 0.34f, 0f), new Vector3(width + 0.25f, 0.68f, depth + 0.25f), darkWood);
+        Block(house, "Rear plaster wall", new Vector3(0f, 2.1f, halfD), new Vector3(width, 3.55f, 0.28f), plaster);
+        Block(house, "Left side wall", new Vector3(-halfW, 2.1f, 0f), new Vector3(0.28f, 3.55f, depth), plaster);
+        Block(house, "Right side wall", new Vector3(halfW, 2.1f, 0f), new Vector3(0.28f, 3.55f, depth), plaster);
+
+        // Front wall is built around an open doorway and two dark, boarded windows.
+        float frontZ = -halfD;
+        Block(house, "Front left pier", new Vector3(-3.65f, 2.05f, frontZ), new Vector3(1.0f, 3.45f, 0.28f), plaster);
+        Block(house, "Front right pier", new Vector3(3.65f, 2.05f, frontZ), new Vector3(1.0f, 3.45f, 0.28f), plaster);
+        Block(house, "Front door left", new Vector3(-1.22f, 1.67f, frontZ), new Vector3(2.0f, 2.7f, 0.28f), plaster);
+        Block(house, "Front door right", new Vector3(1.18f, 1.67f, frontZ), new Vector3(1.92f, 2.7f, 0.28f), plaster);
+        Block(house, "Front lintel", new Vector3(0f, 3.48f, frontZ), new Vector3(2.45f, 0.45f, 0.30f), timber);
+        Block(house, "Open doorway shadow", new Vector3(0f, 1.31f, frontZ - 0.045f), new Vector3(1.65f, 2.55f, 0.06f), darkWood);
+        Block(house, "Hanging broken door", new Vector3(-0.54f, 1.27f, frontZ - 0.14f), new Vector3(0.52f, 2.45f, 0.12f), board, new Vector3(0f, 0f, -5f));
+
+        for (int side = -1; side <= 1; side += 2)
+        {
+            float x = side * 2.65f;
+            Block(house, "Window sill", new Vector3(x, 1.15f, frontZ - 0.19f), new Vector3(1.65f, 0.16f, 0.15f), timber);
+            Block(house, "Window lintel", new Vector3(x, 2.55f, frontZ - 0.19f), new Vector3(1.65f, 0.16f, 0.15f), timber);
+            Block(house, "Window jamb L", new Vector3(x - 0.73f, 1.85f, frontZ - 0.18f), new Vector3(0.15f, 1.25f, 0.16f), darkWood);
+            Block(house, "Window jamb R", new Vector3(x + 0.73f, 1.85f, frontZ - 0.18f), new Vector3(0.15f, 1.25f, 0.16f), darkWood);
+            Block(house, "Blackened window glass", new Vector3(x, 1.84f, frontZ - 0.11f), new Vector3(1.24f, 1.18f, 0.035f), glass);
+            Block(house, "Window crossbar", new Vector3(x, 1.84f, frontZ - 0.25f), new Vector3(0.08f, 1.2f, 0.09f), timber);
+            Block(house, "Boarded window plank", new Vector3(x - 0.14f, 1.62f, frontZ - 0.32f), new Vector3(1.35f, 0.16f, 0.07f), board, new Vector3(0f, 0f, -12f * side));
+        }
+
+        // Timber framing, exposed brick and broken plaster make the silhouette read as a lived-in settlement.
+        for (int i = 0; i < 10; i++)
+        {
+            float x = -3.75f + i * 0.83f;
+            Block(house, "Exposed foundation brick", new Vector3(x, 0.78f, frontZ - 0.17f),
+                new Vector3(0.72f, 0.22f, 0.09f), i % 2 == 0 ? brick : tiles, new Vector3(0f, 0f, (i % 3 - 1) * 4f));
+        }
+        Block(house, "Front corner timber left", new Vector3(-4.08f, 2.05f, frontZ - 0.20f), new Vector3(0.18f, 3.7f, 0.16f), timber);
+        Block(house, "Front corner timber right", new Vector3(4.08f, 2.05f, frontZ - 0.20f), new Vector3(0.18f, 3.7f, 0.16f), timber);
+        Block(house, "Broken plaster patch", new Vector3(-3.25f, 1.13f, frontZ - 0.19f), new Vector3(0.82f, 0.72f, 0.035f), Material(new Color(0.36f, 0.31f, 0.24f)), new Vector3(0f, 0f, -12f));
+        Block(house, "Broken plaster patch 2", new Vector3(3.05f, 2.91f, frontZ - 0.18f), new Vector3(1.0f, 0.40f, 0.035f), Material(new Color(0.35f, 0.33f, 0.29f)), new Vector3(0f, 0f, 9f));
+        Block(house, "Door canopy", new Vector3(0.2f, 2.78f, frontZ - 0.56f), new Vector3(2.7f, 0.16f, 0.95f), roof, new Vector3(-9f, 0f, 1f));
+        Block(house, "Entry post", new Vector3(-1.15f, 1.4f, frontZ - 0.92f), new Vector3(0.13f, 2.7f, 0.13f), timber, new Vector3(0f, 0f, -7f));
+        Block(house, "Entry post 2", new Vector3(1.48f, 1.4f, frontZ - 0.92f), new Vector3(0.13f, 2.7f, 0.13f), timber);
+
+        Transform roofLeft = Part(PrimitiveType.Cube, "Sagging roof left", house, new Vector3(-2.08f, 4.35f, 0f), new Vector3(4.7f, 0.30f, depth + 1.5f), roof);
+        roofLeft.localRotation = Quaternion.Euler(0f, 0f, 27f);
+        Transform roofRight = Part(PrimitiveType.Cube, "Sagging roof right", house, new Vector3(2.08f, 4.35f, 0f), new Vector3(4.7f, 0.30f, depth + 1.5f), roof);
+        roofRight.localRotation = Quaternion.Euler(0f, 0f, -25f);
+        Block(house, "Ridge timber", new Vector3(0f, 5.38f, 0f), new Vector3(0.32f, 0.32f, depth + 1.0f), timber);
+        for (int side = -1; side <= 1; side += 2)
+        for (int z = -3; z <= 3; z++)
+        {
+            Transform rafter = Part(PrimitiveType.Cylinder, "Exposed roof rafter", house,
+                new Vector3(side * 2.2f, 4.34f, z * 1.15f), new Vector3(0.09f, 2.65f, 0.09f), timber);
+            rafter.localRotation = Quaternion.Euler(0f, 0f, side * 27f);
+        }
+        // Individual broken tiles break up the clean roof silhouette.
+        for (int i = 0; i < 13; i++)
+        {
+            float x = -3.7f + i * 0.62f;
+            float z = (i % 2 == 0 ? -1f : 1f) * (depth * 0.5f + 0.56f);
+            Transform tilePiece = Part(PrimitiveType.Cube, "Loose roof tile", house,
+                new Vector3(x, 4.65f + Mathf.Sin(i * 1.7f) * 0.22f, z), new Vector3(0.72f, 0.07f, 0.42f), i % 3 == 0 ? roof : tiles);
+            tilePiece.localRotation = Quaternion.Euler(Random.Range(-7f, 7f), Random.Range(-5f, 5f), Random.Range(-9f, 9f));
+        }
+
+        Block(house, "Chimney stone stack", new Vector3(-2.85f, 5.0f, 1.0f), new Vector3(0.75f, 2.0f, 0.85f), concreteMaterial());
+        Block(house, "Chimney lip", new Vector3(-2.85f, 6.0f, 1.0f), new Vector3(1.0f, 0.17f, 1.05f), darkWood);
+        AddBoardedSideWindow(house, -halfW - 0.15f, -0.1f, glass, timber, board);
+        AddPointLight(name + " weak window glow", house.position + new Vector3(0f, 1.7f, frontZ - 1.0f), new Color(1f, 0.30f, 0.12f), 0.25f, 5f, house);
+
+        if (farmhouse)
+        {
+            Block(house, "Farm sign board", new Vector3(3.1f, 3.25f, frontZ - 0.31f), new Vector3(2.0f, 0.48f, 0.14f), darkWood, new Vector3(0f, 0f, 2f));
+            Block(house, "Sign hanging chain", new Vector3(2.36f, 3.58f, frontZ - 0.31f), new Vector3(0.06f, 0.42f, 0.06f), timber);
+            Block(house, "Sign hanging chain 2", new Vector3(3.85f, 3.58f, frontZ - 0.31f), new Vector3(0.06f, 0.42f, 0.06f), timber);
+        }
+        else
+        {
+            for (int i = 0; i < 4; i++)
+                Block(house, "Shopfront boarded display", new Vector3(-3.1f + i * 0.47f, 1.65f, frontZ - 0.28f), new Vector3(0.14f, 2.0f, 0.07f), i % 2 == 0 ? board : timber, new Vector3(0f, 0f, Random.Range(-4f, 4f)));
+        }
+        AddChimneySmoke(house, new Vector3(-2.85f, 6.05f, 1f));
+    }
+
+    private static Material concreteMaterial() => Material(new Color(0.30f, 0.30f, 0.27f));
+
+    private static void AddBoardedSideWindow(Transform parent, float x, float z, Material glass, Material timber, Material board)
+    {
+        Block(parent, "Side window dark opening", new Vector3(x, 2.0f, z), new Vector3(0.04f, 1.25f, 1.55f), glass);
+        for (int side = -1; side <= 1; side += 2)
+            Block(parent, "Side window board", new Vector3(x - 0.12f, 1.78f, z + side * 0.34f), new Vector3(0.07f, 0.16f, 0.88f), board, new Vector3(0f, 0f, side * 6f));
+        Block(parent, "Side window upper frame", new Vector3(x - 0.13f, 2.67f, z), new Vector3(0.10f, 0.13f, 1.75f), timber);
+        Block(parent, "Side window lower frame", new Vector3(x - 0.13f, 1.32f, z), new Vector3(0.10f, 0.13f, 1.75f), timber);
+    }
+
+    private static void BuildRuinedShell(Transform parent, string name, Vector3 position, Material concrete, Material timber, Material dark)
+    {
+        Transform ruin = ChildRoot(parent, name);
+        ruin.position = position;
+        Block(ruin, "Checkpoint foundation", new Vector3(0f, 0.27f, 0f), new Vector3(10f, 0.54f, 6.5f), dark);
+        Block(ruin, "Back fractured wall", new Vector3(0f, 1.7f, 3.0f), new Vector3(9.7f, 2.9f, 0.34f), concrete);
+        Block(ruin, "Left fractured wall", new Vector3(-4.7f, 1.15f, 0f), new Vector3(0.34f, 1.9f, 5.8f), concrete, new Vector3(0f, 0f, -4f));
+        Block(ruin, "Right wall stump", new Vector3(4.7f, 0.8f, 1.8f), new Vector3(0.34f, 1.3f, 2.5f), concrete, new Vector3(0f, 0f, 6f));
+        Block(ruin, "Fallen roof slab", new Vector3(0.8f, 1.75f, 0.7f), new Vector3(6.7f, 0.28f, 2.6f), concrete, new Vector3(12f, 0f, 15f));
+        for (int i = 0; i < 12; i++)
+        {
+            float x = Random.Range(-4.2f, 4.2f);
+            float z = Random.Range(-2.8f, 2.8f);
+            Transform rubble = Part(i % 2 == 0 ? PrimitiveType.Cube : PrimitiveType.Sphere, "Checkpoint rubble", ruin,
+                new Vector3(x, 0.35f + Random.value * 0.35f, z), new Vector3(Random.Range(0.35f, 1.1f), Random.Range(0.25f, 0.9f), Random.Range(0.3f, 0.85f)), i % 3 == 0 ? timber : concrete);
+            rubble.localRotation = Random.rotation;
+        }
+        Block(ruin, "Bent barricade beam", new Vector3(-3.8f, 1.1f, -3.2f), new Vector3(0.22f, 2.2f, 0.22f), timber, new Vector3(0f, 0f, -28f));
+        Block(ruin, "Checkpoint warning panel", new Vector3(3.7f, 1.25f, -3.25f), new Vector3(1.8f, 0.8f, 0.16f), Material(new Color(0.32f, 0.13f, 0.075f)), new Vector3(0f, 0f, 6f));
+    }
+
+    private static void AddBrokenFence(Transform parent, Vector3 start, int count, Material wood, Material dark, int direction)
+    {
+        Transform fence = ChildRoot(parent, "Collapsed roadside fence");
+        fence.position = start;
+        for (int i = 0; i < count; i++)
+        {
+            float x = direction * i * 1.0f;
+            float lean = (i % 4 == 0) ? direction * 18f : Random.Range(-4f, 4f);
+            Block(fence, "Weathered fence post", new Vector3(x, 0.72f, 0f), new Vector3(0.16f, 1.45f, 0.18f), i % 3 == 0 ? dark : wood, new Vector3(0f, 0f, lean));
+            if (i < count - 1 && i % 3 != 1)
+            {
+                Block(fence, "Broken horizontal rail", new Vector3(x + direction * 0.48f, 0.82f, 0f), new Vector3(1.05f, 0.13f, 0.14f), wood, new Vector3(0f, 0f, i % 2 == 0 ? 3f : -7f));
+                if (i % 2 == 0) Block(fence, "Upper fence rail", new Vector3(x + direction * 0.48f, 1.25f, 0f), new Vector3(1.02f, 0.11f, 0.14f), dark, new Vector3(0f, 0f, -2f));
+            }
+        }
+    }
+
+    private static void AddRoadAndGround(Transform parent, Material concrete, Material dark, Material rust)
+    {
+        Transform road = ChildRoot(parent, "Cracked village road");
+        road.position = Vector3.zero;
+        Material asphalt = SurfaceMaterial("CrackedAsphalt", new Color(0.56f, 0.58f, 0.60f), SurfaceKind.Asphalt);
+        Material mud = SurfaceMaterial("WetRoadMud", new Color(0.48f, 0.39f, 0.29f), SurfaceKind.Mud);
+        Material crack = Material(new Color(0.055f, 0.06f, 0.065f));
+        for (int i = 0; i < 15; i++)
+        {
+            float z = 8f + i * 3.0f;
+            float drift = Mathf.Sin(i * 0.54f) * 1.25f;
+            Block(road, "Broken asphalt slab", new Vector3(drift, 0.025f, z), new Vector3(4.2f + (i % 3) * 0.35f, 0.06f, 3.3f), i % 4 == 0 ? mud : asphalt, new Vector3(0f, Mathf.Sin(i) * 2f, 0f));
+            if (i % 2 == 0)
+                Block(road, "Road fracture", new Vector3(drift + 0.8f, 0.062f, z + 0.8f), new Vector3(1.4f, 0.015f, 0.06f), crack, new Vector3(0f, 0f, Random.Range(-35f, 35f)));
+        }
+        for (int i = 0; i < 22; i++)
+        {
+            float x = Random.Range(-7f, 7f);
+            float z = Random.Range(14f, 46f);
+            Transform debris = Part(i % 3 == 0 ? PrimitiveType.Cube : PrimitiveType.Sphere, "Roadside brick and debris", parent,
+                new Vector3(x, 0.13f, z), new Vector3(Random.Range(0.18f, 0.8f), Random.Range(0.14f, 0.42f), Random.Range(0.2f, 0.8f)), i % 4 == 0 ? rust : concrete);
+            debris.localRotation = Random.rotation;
+        }
+        // Dirt shoulders and a few broken curb stones frame the new path into the settlement.
+        for (int side = -1; side <= 1; side += 2)
+        for (int i = 0; i < 12; i++)
+        {
+            float z = 12f + i * 2.7f;
+            Block(road, "Broken roadside curb", new Vector3(side * (3.15f + Random.Range(-0.3f, 0.3f)), 0.11f, z),
+                new Vector3(0.28f, 0.22f, Random.Range(1.1f, 2.1f)), dark, new Vector3(0f, Random.Range(-8f, 8f), Random.Range(-5f, 5f)));
+        }
+    }
+
+    private static void AddStreetPropDetails(Transform parent, Material timber, Material dark, Material rust, Material concrete)
+    {
+        Transform pole = ChildRoot(parent, "Leaning power pole");
+        pole.position = new Vector3(6.6f, 0f, 28f);
+        Transform post = Part(PrimitiveType.Cylinder, "Splintered utility pole", pole, new Vector3(0f, 4.4f, 0f), new Vector3(0.23f, 4.5f, 0.23f), timber);
+        post.localRotation = Quaternion.Euler(0f, 0f, -7f);
+        Block(pole, "Power crossarm", new Vector3(0f, 8.45f, 0f), new Vector3(2.7f, 0.16f, 0.18f), dark);
+        for (int i = -1; i <= 1; i++) Block(pole, "Power insulator", new Vector3(i * 0.9f, 8.72f, 0f), new Vector3(0.18f, 0.48f, 0.18f), concrete);
+        Transform streetLamp = ChildRoot(parent, "Flickering street lamp");
+        streetLamp.position = new Vector3(-5.7f, 0f, 24f);
+        Transform lampPost = Part(PrimitiveType.Cylinder, "Rusty streetlamp", streetLamp, new Vector3(0f, 3.4f, 0f), new Vector3(0.13f, 3.5f, 0.13f), dark);
+        lampPost.localRotation = Quaternion.Euler(0f, 0f, 2f);
+        Block(streetLamp, "Lamp arm", new Vector3(0.65f, 6.8f, 0f), new Vector3(1.4f, 0.1f, 0.1f), dark, new Vector3(0f, 0f, -12f));
+        Transform bulb = Part(PrimitiveType.Sphere, "Dying amber bulb", streetLamp, new Vector3(1.2f, 6.65f, 0f), Vector3.one * 0.24f, EmissiveMaterial(new Color(1f, 0.32f, 0.08f)));
+        bulb.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+        AddPointLight("Street lamp intermittent glow", streetLamp.position + new Vector3(1.2f, 6.4f, 0f), new Color(1f, 0.30f, 0.08f), 1.0f, 10f, streetLamp);
+        Block(parent, "Abandoned road sign post", new Vector3(4.8f, 1.6f, 18f), new Vector3(0.13f, 3.2f, 0.13f), rust, new Vector3(0f, 0f, 4f));
+        Block(parent, "Bent road sign", new Vector3(4.8f, 2.85f, 18f), new Vector3(1.55f, 0.82f, 0.14f), Material(new Color(0.34f, 0.23f, 0.14f)), new Vector3(0f, 0f, 8f));
+        Block(parent, "Buried road barrier", new Vector3(-3.8f, 0.62f, 16f), new Vector3(3.4f, 0.2f, 0.18f), rust, new Vector3(0f, 0f, -4f));
+        for (int i = 0; i < 8; i++)
+            Block(parent, "Barrier stripe", new Vector3(-5.1f + i * 0.38f, 0.64f, 15.88f), new Vector3(0.16f, 0.21f, 0.04f), i % 2 == 0 ? concrete : dark, new Vector3(0f, 0f, -4f));
+    }
+
+    private static Transform[] AddTallGrass(Transform parent)
+    {
+        if (grassMesh == null) grassMesh = BuildGrassMesh();
+        Material grassMaterial = Material(new Color(0.27f, 0.29f, 0.17f));
+        List<Transform> animated = new List<Transform>();
+        Random.State previous = Random.state;
+        Random.InitState(6102026);
+        for (int i = 0; i < 92; i++)
+        {
+            Vector2 direction = Random.insideUnitCircle.normalized;
+            float radius = Random.Range(10f, 39f);
+            Vector3 position = new Vector3(direction.x * radius, 0.025f, direction.y * radius);
+            if (NearZone(position, new Vector3(-10f, 0f, 34f), 6f) || NearZone(position, new Vector3(10f, 0f, 39f), 6f)
+                || Mathf.Abs(position.x) < 2.8f && position.z > 12f && position.z < 50f) continue;
+            GameObject clump = new GameObject("Animated dry grass");
+            clump.transform.SetParent(parent, false);
+            clump.transform.position = position;
+            clump.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            clump.transform.localScale = Vector3.one * Random.Range(0.75f, 1.65f);
+            clump.AddComponent<MeshFilter>().sharedMesh = grassMesh;
+            clump.AddComponent<MeshRenderer>().sharedMaterial = grassMaterial;
+            if (animated.Count < 38) animated.Add(clump.transform);
+        }
+        Random.state = previous;
+        return animated.ToArray();
+    }
+
+    private static void AddSurvivalToolsToPlayer()
+    {
+        GameObject player = GameObject.Find("Player_Prototype");
+        Transform rig = player != null ? player.transform.Find("Player_Visual_Rig") : null;
+        if (rig == null || rig.Find("Backpack Axe") != null) return;
+        Material handle = Material(new Color(0.20f, 0.13f, 0.08f));
+        Material steel = Material(new Color(0.48f, 0.50f, 0.47f));
+        Transform axe = ChildRoot(rig, "Backpack Axe");
+        axe.localPosition = new Vector3(-0.02f, 0.16f, -0.405f);
+        Transform haft = Part(PrimitiveType.Cylinder, "Worn axe haft", axe, Vector3.zero, new Vector3(0.075f, 0.68f, 0.075f), handle);
+        haft.localRotation = Quaternion.Euler(0f, 0f, 7f);
+        Block(axe, "Axe steel head", new Vector3(-0.10f, 0.37f, 0f), new Vector3(0.34f, 0.20f, 0.12f), steel, new Vector3(0f, 0f, -8f));
+        Block(axe, "Axe blade edge", new Vector3(-0.25f, 0.37f, 0f), new Vector3(0.08f, 0.25f, 0.12f), steel, new Vector3(0f, 0f, -19f));
+        Block(axe, "Axe leather wrap", new Vector3(0f, -0.22f, 0.045f), new Vector3(0.13f, 0.11f, 0.12f), Material(new Color(0.32f, 0.18f, 0.10f)), new Vector3(0f, 0f, 7f));
+    }
+
+    private static Mesh BuildGrassMesh()
+    {
+        const int bladeCount = 7;
+        Vector3[] vertices = new Vector3[bladeCount * 4];
+        int[] triangles = new int[bladeCount * 12];
+        Random.State previous = Random.state;
+        Random.InitState(4901);
+        for (int i = 0; i < bladeCount; i++)
+        {
+            float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+            float radius = Random.Range(0f, 0.24f);
+            float height = Random.Range(0.5f, 1.15f);
+            float width = Random.Range(0.035f, 0.09f);
+            Vector3 center = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            Vector3 side = new Vector3(-Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * width;
+            Vector3 lean = new Vector3(Mathf.Cos(angle + 1.2f), 0f, Mathf.Sin(angle + 1.2f)) * (height * 0.24f);
+            int v = i * 4;
+            vertices[v] = center - side;
+            vertices[v + 1] = center + side;
+            vertices[v + 2] = center + lean + side * 0.12f + Vector3.up * height;
+            vertices[v + 3] = center + lean - side * 0.12f + Vector3.up * height;
+            int t = i * 12;
+            triangles[t] = v; triangles[t + 1] = v + 2; triangles[t + 2] = v + 1;
+            triangles[t + 3] = v; triangles[t + 4] = v + 3; triangles[t + 5] = v + 2;
+            triangles[t + 6] = v + 1; triangles[t + 7] = v + 2; triangles[t + 8] = v;
+            triangles[t + 9] = v + 2; triangles[t + 10] = v + 3; triangles[t + 11] = v;
+        }
+        Random.state = previous;
+        Mesh mesh = new Mesh { name = "Wind-swept grass clump" };
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    private static ParticleSystem AddAshFall(Transform parent)
+    {
+        GameObject ashObject = new GameObject("Drifting ash and spores");
+        ashObject.transform.SetParent(parent, false);
+        ashObject.transform.position = new Vector3(0f, 4f, 16f);
+        ParticleSystem system = ashObject.AddComponent<ParticleSystem>();
+        ParticleSystem.MainModule main = system.main;
+        main.loop = true;
+        main.duration = 10f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(8f, 14f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f, 0.35f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.025f, 0.09f);
+        main.startColor = new Color(0.55f, 0.59f, 0.61f, 0.42f);
+        main.maxParticles = 240;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        ParticleSystem.EmissionModule emission = system.emission;
+        emission.rateOverTime = 13f;
+        ParticleSystem.ShapeModule shape = system.shape;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(56f, 0.3f, 62f);
+        ParticleSystem.VelocityOverLifetimeModule drift = system.velocityOverLifetime;
+        drift.enabled = true;
+        drift.x = new ParticleSystem.MinMaxCurve(-0.12f, 0.12f);
+        drift.y = new ParticleSystem.MinMaxCurve(-0.28f, -0.08f);
+        drift.z = new ParticleSystem.MinMaxCurve(-0.1f, 0.1f);
+        ParticleSystemRenderer renderer = ashObject.GetComponent<ParticleSystemRenderer>();
+        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader != null) renderer.sharedMaterial = new Material(shader) { color = new Color(0.58f, 0.61f, 0.64f, 0.45f) };
+        return system;
+    }
+
+    private static void AddChimneySmoke(Transform parent, Vector3 localPosition)
+    {
+        GameObject smokeObject = new GameObject("Slow chimney smoke");
+        smokeObject.transform.SetParent(parent, false);
+        smokeObject.transform.localPosition = localPosition;
+        ParticleSystem system = smokeObject.AddComponent<ParticleSystem>();
+        ParticleSystem.MainModule main = system.main;
+        main.loop = true;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(5f, 9f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.18f, 0.42f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.15f, 0.42f);
+        main.startColor = new Color(0.32f, 0.36f, 0.39f, 0.23f);
+        main.maxParticles = 48;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        ParticleSystem.EmissionModule emission = system.emission;
+        emission.rateOverTime = 1.6f;
+        ParticleSystem.ShapeModule shape = system.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 8f;
+        shape.radius = 0.16f;
+        ParticleSystemRenderer renderer = smokeObject.GetComponent<ParticleSystemRenderer>();
+        Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader != null) renderer.sharedMaterial = new Material(shader) { color = new Color(0.38f, 0.41f, 0.43f, 0.24f) };
     }
 
     private static void AddPointLight(string objectName, Vector3 position, Color color, float intensity, float range, Transform parent)

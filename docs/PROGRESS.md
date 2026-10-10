@@ -1,6 +1,6 @@
 # BERNEOX project progress
 
-Updated: 2026-10-09
+Updated: 2026-10-10
 
 ## Confirmed product decisions
 
@@ -26,13 +26,14 @@ Updated: 2026-10-09
 - A 12-slot inventory supports resource stacks up to 30. Items that do not fit remain in the world. A temporary workbench enables the document's provisional bat and axe recipes during preparation; crafted weapons equip automatically and change combat values, and the axe doubles wood from trees. Inventory and crafting screens pause the game. Inventory is not persisted between sessions.
 - The player can start manual shelter placement between hordes from the HUD, choose a wall (8 wood) or low barricade (4 wood), tap the ground to move a grid-snapped preview, rotate in 90-degree steps, and confirm placement. Existing colliders block placement; wood is charged only when a piece is successfully placed. Zombies now attack shelter pieces that block their path; the player can approach a damaged piece and repair it between hordes for 2 wood (+50 health). A small health bar appears above a damaged piece when the player is nearby. Health values and repair cost are provisional.
 - A scene visual pass adds a dark, foggy night setup, roughly 60 procedural pines plus dead trees and undergrowth, an abandoned shelter, a wrecked vehicle, a small ember camp, distinct 3D material pickup models, a detailed player rig, and three visible dormant zombies that activate as the first horde. Player and zombie limbs animate procedurally to keep the prototype asset-free and lightweight. Visual quality and Android performance still require an in-Unity review.
+- A second cumulative visual pass is prepared in the Editor scene tool: two ruined village buildings, a collapsed checkpoint, cracked road, broken fences, street props, procedural grunge surface textures, animated dry grass, drifting ash, chimney smoke, flickering lights, a backpack axe, and a more hunched zombie idle. It is idempotent and saves a separate scene root; Unity must leave Play mode before the callback can apply it. The visual source uses procedural geometry and textures; production-grade rigged characters and environment assets remain a later art pass.
 - Fixed a Unity 6 startup exception in the HUD by switching its built-in font lookup to `LegacyRuntime.ttf`.
 - The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
 - Unity editor menu `BERNEOX > Crear inicio y catálogo` opens the existing hub scene, or creates it if missing.
 
 ## Checks and limitations
 
-- Unity Editor imported and compiled the earlier prototype scripts, but the recent scene/art pass has not yet been compiled or visually checked in the active Editor. A Unity 6 font exception was found in the previous Play attempt and has been fixed in source.
+- The first visual scene pass was applied and saved by Unity. The C# compiler stages for the second pass completed without C# diagnostics; the full scene-generation callback and in-Unity visual/runtime check remain pending until Play mode ends. A previous Unity 6 font exception was fixed in source.
 - `git diff --check` is run for this change before commit.
 - The Unity Editor Play preview has not yet been visually checked. Unity was blocked at its activation/licensing screen; accepting Unity's terms must be done by the user.
 - This is still an early prototype. Online accounts, networking, currency/rewards, and the other catalog games are not implemented.
