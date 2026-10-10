@@ -54,7 +54,9 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
         towardPlayer.y = 0f;
         float distance = towardPlayer.magnitude;
         Vector3 direction = distance > 0.001f ? towardPlayer / distance : Vector3.zero;
-        bool moving = distance > attackDistance;
+        PrototypeShelterPiece blockingPiece = FindShelterInPath(direction, distance);
+        bool attackingShelter = blockingPiece != null && distance > attackDistance;
+        bool moving = distance > attackDistance && !attackingShelter;
 
         if (direction.sqrMagnitude > 0.001f)
         {
@@ -74,11 +76,34 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
             visual.localPosition = visualStart + Vector3.up * bob;
         }
 
-        if (!moving && Time.time >= nextAttackTime)
+        if (attackingShelter && Time.time >= nextAttackTime)
+        {
+            nextAttackTime = Time.time + attackInterval;
+            blockingPiece.TakeDamage(attackDamage);
+        }
+        else if (!attackingShelter && !moving && Time.time >= nextAttackTime)
         {
             nextAttackTime = Time.time + attackInterval;
             target.TakeDamage(attackDamage);
         }
+    }
+
+    private PrototypeShelterPiece FindShelterInPath(Vector3 direction, float distance)
+    {
+        if (direction.sqrMagnitude < 0.001f || distance < 0.1f) return null;
+        Vector3 origin = transform.position + Vector3.up * 0.9f;
+        RaycastHit[] hits = Physics.RaycastAll(origin, direction, distance, ~0, QueryTriggerInteraction.Ignore);
+        PrototypeShelterPiece nearest = null;
+        float nearestDistance = float.MaxValue;
+        foreach (RaycastHit hit in hits)
+        {
+            if (hit.collider.transform.root == transform.root) continue;
+            PrototypeShelterPiece piece = hit.collider.GetComponentInParent<PrototypeShelterPiece>();
+            if (piece == null || hit.distance >= nearestDistance) continue;
+            nearestDistance = hit.distance;
+            nearest = piece;
+        }
+        return nearest;
     }
 
     public void TakeDamage(float damage)

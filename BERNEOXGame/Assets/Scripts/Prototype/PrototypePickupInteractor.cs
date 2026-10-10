@@ -12,9 +12,10 @@ public sealed class PrototypePickupInteractor : MonoBehaviour
     public PrototypeResourcePickup NearbyPickup { get; private set; }
     public PrototypeTreeNode NearbyTree { get; private set; }
     public PrototypeCraftingStation NearbyStation { get; private set; }
+    public PrototypeShelterPiece NearbyShelterPiece { get; private set; }
     public event Action CraftingRequested;
     public event Action<string> MessageShown;
-    public string ActionLabel => NearbyPickup != null ? "RECOGER" : NearbyTree != null ? "TALAR" : NearbyStation != null ? "FABRICAR" : "ATACAR";
+    public string ActionLabel => NearbyPickup != null ? "RECOGER" : NearbyTree != null ? "TALAR" : NearbyStation != null ? "FABRICAR" : NearbyShelterPiece != null ? "REPARAR" : "ATACAR";
 
     private void Awake()
     {
@@ -29,6 +30,7 @@ public sealed class PrototypePickupInteractor : MonoBehaviour
         NearbyPickup = null;
         NearbyTree = null;
         NearbyStation = null;
+        NearbyShelterPiece = null;
         float nearest = pickupRange * pickupRange;
         foreach (PrototypeResourcePickup pickup in FindObjectsByType<PrototypeResourcePickup>())
         {
@@ -60,6 +62,19 @@ public sealed class PrototypePickupInteractor : MonoBehaviour
                 nearest = distance;
                 NearbyStation = station;
             }
+
+            if (NearbyPickup == null && NearbyTree == null)
+            {
+                foreach (PrototypeShelterPiece piece in FindObjectsByType<PrototypeShelterPiece>())
+                {
+                    if (piece == null || !piece.IsDamaged) continue;
+                    float distance = (piece.transform.position - transform.position).sqrMagnitude;
+                    if (distance > nearest) continue;
+                    nearest = distance;
+                    NearbyStation = null;
+                    NearbyShelterPiece = piece;
+                }
+            }
         }
 
         if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame) InteractNearby();
@@ -87,6 +102,23 @@ public sealed class PrototypePickupInteractor : MonoBehaviour
         if (NearbyStation != null)
         {
             CraftingRequested?.Invoke();
+            return true;
+        }
+        if (NearbyShelterPiece != null)
+        {
+            if (hordeDirector != null && hordeDirector.HordeActive)
+            {
+                MessageShown?.Invoke("REPARA ENTRE HORDAS");
+                return true;
+            }
+            if (inventory == null || !inventory.TrySpendResource(PrototypeResourceType.Wood, 2))
+            {
+                MessageShown?.Invoke("REPARAR CUESTA 2 MADERA");
+                return true;
+            }
+            if (!NearbyShelterPiece.Repair(50f)) inventory.TryAddResource(PrototypeResourceType.Wood, 2);
+            else MessageShown?.Invoke("REFUGIO REPARADO · +50 VIDA");
+            NearbyShelterPiece = null;
             return true;
         }
         return false;
