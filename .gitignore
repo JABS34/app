@@ -1,0 +1,32 @@
+# Unity generated files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+
+# IDE and operating-system files
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svclog
+*.tmp
+Thumbs.db
+Desktop.ini
+
+# Keep Unity package manifests, metadata, and project settings tracked.
+
+# Ignore incomplete projects from earlier setup attempts.
+/UnityProject/
+/GameProject/
