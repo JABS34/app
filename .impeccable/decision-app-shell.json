@@ -1,0 +1,140 @@
+{
+  "title": "Elige la dirección visual de BERNEOX",
+  "question": "La apertura de letras desde los lados, el morado, el modo oscuro y los objetos 3D en movimiento se conservan en todas las opciones. Elige cómo debe sentirse la apertura y el catálogo principal.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "La baliza nocturna",
+      "kicker": "THE ROLL",
+      "lineage": "Estaciones de radio de emergencia y puestos de vigilancia en la noche",
+      "thesis": "Una baliza violeta enlaza el bosque de Zombie Survival con un centro de juegos compartido.",
+      "palette": ["#100a20", "#6e35dd", "#bda2ff", "#d9f2cc"],
+      "materials": ["niebla nocturna", "señal de radio violeta", "metal satinado"],
+      "viewport": "Las letras BERNEOX llegan desde los lados y se ensamblan ante un bosque estilizado; una señal luminosa se abre hacia la portada del juego destacado y el catálogo aparece como destinos conectados.",
+      "risk": "La ambientación de supervivencia puede hacer que los otros juegos parezcan parte del mismo juego; cada título necesita un objeto 3D y una identidad propia.",
+      "raised": [
+        {"from": "Variable Font Specimen", "raise": "Las letras convergen en una palabra legible, con una transformación coordinada y sin deformaciones que oculten el nombre."},
+        {"from": "Labanotation Dance Score", "raise": "La entrada tiene tiempos definidos y un ritmo claro; la ambientación queda más lenta para no competir con la lectura."},
+        {"from": "Botanical Folio", "raise": "Los objetos 3D del catálogo mantienen una escala y un encuadre comparables entre juegos."},
+        {"from": "Crouwel Grid Specimen", "raise": "Una retícula constante ordena navegación, títulos y zonas táctiles aunque haya objetos animados."}
+      ],
+      "wireframe": {"cols": 12, "rows": 16, "regions": [{"label": "Marca y apertura cinematográfica", "x": 0, "y": 0, "w": 12, "h": 6, "accent": true}, {"label": "Juego destacado y objeto 3D", "x": 0, "y": 6, "w": 12, "h": 5}, {"label": "Catálogo como destinos de señal", "x": 0, "y": 11, "w": 12, "h": 3}, {"label": "Navegación", "x": 0, "y": 14, "w": 12, "h": 2}]}
+    },
+    {
+      "id": "model-pick",
+      "label": "Vestíbulo arcade",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Salas arcade y sus pantallas de atracción",
+      "thesis": "Un vestíbulo arcade convierte cada juego de BERNEOX en una estación que invita a entrar.",
+      "palette": ["#100a20", "#7b3ff2", "#d3c0ff", "#f1c75b"],
+      "materials": ["gabinetes lacados", "luz violeta", "metal oscuro"],
+      "viewport": "La apertura reúne las letras sobre una fila de gabinetes; Zombie Survival se enciende primero. En la pantalla principal, cada título ocupa una estación seleccionable con vista previa 3D.",
+      "risk": "La estética arcade puede sentirse demasiado nostálgica o infantil si se llena de luces, adornos y efectos simultáneos.",
+      "wireframe": {"cols": 12, "rows": 16, "regions": [{"label": "Logotipo y escena arcade", "x": 0, "y": 0, "w": 12, "h": 5, "accent": true}, {"label": "Gabinete destacado", "x": 1, "y": 5, "w": 10, "h": 6}, {"label": "Estaciones de juegos", "x": 0, "y": 11, "w": 12, "h": 3}, {"label": "Navegación", "x": 0, "y": 14, "w": 12, "h": 2}]}
+    },
+    {
+      "id": "challenger-teletext",
+      "label": "Índice de señales",
+      "verdict": "competitive",
+      "lineage": "Índices de teletexto televisivo",
+      "thesis": "Un índice de señales presenta los juegos como destinos numerados que se abren al instante.",
+      "palette": ["#100a20", "#7540e8", "#bda2ff", "#f0e64c"],
+      "materials": ["bloques de color", "rejilla modular", "brillo de pantalla"],
+      "viewport": "La apertura arma BERNEOX con páginas de color; el catálogo organiza títulos y estados en módulos numerados, con un objeto 3D activo sobre el índice.",
+      "risk": "El lenguaje de teletexto puede sentirse anticuado para parte del público.",
+      "case": "Identificación de audiencia: media; claridad del producto: alta. El índice comunica la variedad de juegos con rapidez, aunque la referencia retro no es familiar para todos.",
+      "wireframe": {"cols": 12, "rows": 16, "regions": [{"label": "Marca ensamblada en módulos", "x": 0, "y": 0, "w": 12, "h": 4, "accent": true}, {"label": "Juego en emisión", "x": 0, "y": 4, "w": 12, "h": 5}, {"label": "Índice modular de juegos", "x": 0, "y": 9, "w": 12, "h": 5}, {"label": "Navegación", "x": 0, "y": 14, "w": 12, "h": 2}]}
+    },
+    {
+      "id": "challenger-ticket-wallet",
+      "label": "Pasaporte de juegos",
+      "verdict": "competitive",
+      "lineage": "Cupones de viaje, tarjetas de embarque y sellos de ruta",
+      "thesis": "Un pasaporte reúne perfil, progreso y acceso a cada juego en una misma ruta.",
+      "palette": ["#100a20", "#6e35dd", "#e8e0f5", "#efb85c"],
+      "materials": ["tarjetas laminadas", "tinta violeta", "líneas de ruta"],
+      "viewport": "El nombre se ensambla sobre una ruta violeta; el catálogo muestra tarjetas de acceso con progreso y estados visibles, sin convertir COINS en dinero.",
+      "risk": "La metáfora de viaje puede apartar la marca del género de videojuegos.",
+      "case": "Identificación de audiencia: media; claridad del producto: alta. La ruta comunica progreso compartido, pero la referencia de viaje se aleja de la experiencia de juego.",
+      "wireframe": {"cols": 12, "rows": 16, "regions": [{"label": "Marca y ruta", "x": 0, "y": 0, "w": 12, "h": 4, "accent": true}, {"label": "Pase de Zombie Survival", "x": 0, "y": 4, "w": 12, "h": 5}, {"label": "Pases de otros juegos", "x": 0, "y": 9, "w": 12, "h": 5}, {"label": "Navegación", "x": 0, "y": 14, "w": 12, "h": 2}]}
+    },
+    {
+      "id": "challenger-metro",
+      "label": "Mosaico activo",
+      "verdict": "wins",
+      "lineage": "Mosaicos tipográficos de interfaces digitales táctiles",
+      "thesis": "Un muro de mosaicos convierte cada juego en una puerta viva dentro de BERNEOX.",
+      "palette": ["#100a20", "#7139e6", "#a983ff", "#f2eff8"],
+      "materials": ["planos de color", "retícula visible", "objetos 3D en relieve"],
+      "viewport": "Las letras entran desde los costados y se alinean en un mosaico central sobre el bosque estilizado; el mosaico se abre a Zombie Survival y continúa hacia el catálogo. Las piezas se inclinan al tocarlas y el juego siguiente asoma en el borde.",
+      "risk": "Un mosaico demasiado denso o con movimiento constante distraería; la retícula y el movimiento deben dejar espacio para leer y tocar.",
+      "case": "Identificación de audiencia: alta; claridad del producto: alta. Los mosaicos táctiles resultan familiares a quienes usan juegos y aplicaciones, y muestran de inmediato que BERNEOX contiene varios juegos.",
+      "wireframe": {"cols": 12, "rows": 16, "regions": [{"label": "Mosaico de marca animado", "x": 0, "y": 0, "w": 12, "h": 5, "accent": true}, {"label": "Mosaico grande Zombie Survival con objeto 3D", "x": 0, "y": 5, "w": 8, "h": 6}, {"label": "Mosaico de perfil y COINS", "x": 8, "y": 5, "w": 4, "h": 3}, {"label": "Mosaico de actividad", "x": 8, "y": 8, "w": 4, "h": 3}, {"label": "Mosaicos de otros juegos", "x": 0, "y": 11, "w": 12, "h": 3}, {"label": "Navegación", "x": 0, "y": 14, "w": 12, "h": 2}]}
+    },
+    {
+      "id": "challenger-variable-font",
+      "label": "Letras en transformación",
+      "verdict": "declined",
+      "lineage": "Especímenes tipográficos interactivos de fuentes variables",
+      "thesis": "La marca se transforma a través de letras gigantes y controles de peso tipográfico.",
+      "palette": ["#100a20", "#743ce9", "#c8b6ef"],
+      "materials": ["tinta digital", "rejilla tipográfica"],
+      "viewport": "BERNEOX ocupa la apertura; sus letras cambian de peso y se convierten en las formas del catálogo.",
+      "risk": "La tipografía experimental podría competir con los nombres y el acceso a los juegos.",
+      "case": "Identificación de audiencia: baja; claridad del producto: baja. El espécimen tipográfico habla de diseño de letras, no de una plataforma de juegos.",
+      "kept": "La transformación del logotipo se coordina como una sola acción para que las letras sigan siendo legibles."
+    },
+    {
+      "id": "challenger-labanotation",
+      "label": "Partitura de movimiento",
+      "verdict": "declined",
+      "lineage": "Partituras de labanotación para registrar movimiento y duración",
+      "thesis": "Una partitura central describe cada animación por dirección, nivel y duración.",
+      "palette": ["#100a20", "#7945df", "#e7e1f1"],
+      "materials": ["símbolos de movimiento", "bandas de tiempo"],
+      "viewport": "La palabra BERNEOX asciende por una pauta central y revela los mosaicos como una secuencia de movimientos.",
+      "risk": "La notación especializada exige aprender un lenguaje antes de jugar.",
+      "case": "Identificación de audiencia: baja; claridad del producto: baja. La labanotación no conecta con el uso habitual de una biblioteca de juegos.",
+      "kept": "Las animaciones de apertura y transición siguen una duración y un ritmo intencionales."
+    },
+    {
+      "id": "challenger-botanical",
+      "label": "Colección evolutiva",
+      "verdict": "declined",
+      "lineage": "Láminas botánicas comparadas a escala constante",
+      "thesis": "Cada juego se muestra como una pieza de una colección que evoluciona por etapas.",
+      "palette": ["#100a20", "#7139e6", "#c5e0b3", "#e9e1d7"],
+      "materials": ["láminas mate", "tinta violeta", "marcos de escala"],
+      "viewport": "Los títulos entran como placas consecutivas; el objeto destacado crece desde una escala común.",
+      "risk": "La colección naturalista no señala de forma inmediata una plataforma de juegos.",
+      "case": "Identificación de audiencia: baja; claridad del producto: baja. La metáfora botánica no ayuda a entender cómo elegir un juego.",
+      "kept": "Los objetos 3D de cada juego conservan escala y encuadre coherentes dentro del catálogo."
+    },
+    {
+      "id": "challenger-crouwel",
+      "label": "Retícula tipográfica",
+      "verdict": "declined",
+      "lineage": "Especímenes tipográficos modulares de Wim Crouwel",
+      "thesis": "Una retícula visible construye letras y organiza cada pantalla por celdas.",
+      "palette": ["#100a20", "#7139e6", "#c6b1f2"],
+      "materials": ["rejilla modular", "planos violetas", "tipografía geométrica"],
+      "viewport": "Las letras se ensamblan celda por celda y se transforman en zonas del catálogo.",
+      "risk": "La retícula como protagonista puede sentirse fría y más editorial que lúdica.",
+      "case": "Identificación de audiencia: baja; claridad del producto: media. La geometría ordena el catálogo, pero la tipografía constructiva no aporta reconocimiento de juego.",
+      "kept": "La retícula fija márgenes, zonas táctiles y alineación para que el movimiento no desordene la interfaz."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code"},
+  "canon": true,
+  "canonCard": {
+    "label": "Lanzador de juegos estándar",
+    "thesis": "Una biblioteca convencional muestra el juego destacado y una lista clara de títulos.",
+    "palette": ["#100a20", "#7139e6", "#f3f0f8"],
+    "materials": ["superficies planas", "miniaturas de juegos", "navegación estándar"],
+    "viewport": "Animación de marca breve seguida por un catálogo convencional con Zombie Survival destacado.",
+    "risk": "La experiencia sería clara, pero podría confundirse con otros lanzadores de juegos.",
+    "wireframe": {"cols": 12, "rows": 16, "regions": [{"label": "Marca", "x": 0, "y": 0, "w": 12, "h": 3, "accent": true}, {"label": "Juego destacado", "x": 0, "y": 3, "w": 12, "h": 6}, {"label": "Catálogo", "x": 0, "y": 9, "w": 12, "h": 5}, {"label": "Navegación", "x": 0, "y": 14, "w": 12, "h": 2}]}
+  },
+  "steer": true
+}
