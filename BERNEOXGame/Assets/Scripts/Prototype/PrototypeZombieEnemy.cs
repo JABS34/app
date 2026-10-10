@@ -12,6 +12,7 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
     [SerializeField] private float attackInterval = 1.3f;
 
     private CharacterController controller;
+    private PrototypeCharacterAnimation characterAnimation;
     private PrototypePlayerHealth target;
     private Transform visual;
     private Vector3 visualStart;
@@ -27,6 +28,7 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
+        characterAnimation = GetComponent<PrototypeCharacterAnimation>();
         health = maximumHealth;
         if (visual == null && transform.childCount > 0) visual = transform.GetChild(0);
         if (visual != null) visualStart = visual.localPosition;
@@ -79,11 +81,13 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
         if (attackingShelter && Time.time >= nextAttackTime)
         {
             nextAttackTime = Time.time + attackInterval;
+            if (characterAnimation != null) characterAnimation.PlayAttack();
             blockingPiece.TakeDamage(attackDamage);
         }
         else if (!attackingShelter && !moving && Time.time >= nextAttackTime)
         {
             nextAttackTime = Time.time + attackInterval;
+            if (characterAnimation != null) characterAnimation.PlayAttack();
             target.TakeDamage(attackDamage);
         }
     }

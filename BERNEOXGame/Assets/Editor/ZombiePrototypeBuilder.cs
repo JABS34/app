@@ -94,13 +94,14 @@ public static class ZombiePrototypeBuilder
         PlayerSettings.allowedAutorotateToLandscapeLeft = true;
         PlayerSettings.allowedAutorotateToLandscapeRight = true;
 
+        ZombiePrototypeVisualUpgrade.UpgradeScene(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
         var buildScenes = new List<EditorBuildSettingsScene>();
         foreach (EditorBuildSettingsScene existing in EditorBuildSettings.scenes)
             if (existing.path != ScenePath) buildScenes.Add(existing);
         buildScenes.Add(new EditorBuildSettingsScene(ScenePath, true));
         EditorBuildSettings.scenes = buildScenes.ToArray();
-        EditorUtility.DisplayDialog("Prototipo creado", "ZombiePrototype incluye recolección, árboles, mochila de 12 espacios, mesa para fabricar bate/hacha y hordas. Prepárate antes de la primera ronda; hay tres minutos entre hordas. En Play, muévete con WASD/joystick, ataca con Espacio, interactúa con E y abre la mochila con I. Los valores de dificultad son provisionales.", "Aceptar");
+        EditorUtility.DisplayDialog("Prototipo creado", "ZombiePrototype incluye un bosque nocturno denso, puesto abandonado, vehículo destruido, personaje articulado, zombis visibles, recursos con modelos propios y el ciclo de supervivencia. En Play, muévete con WASD/joystick, ataca con Espacio, interactúa con E y abre la mochila con I. La primera horda es provisional; después hay tres minutos de preparación.", "Aceptar");
     }
 
     private static GameObject CreateZombie(int index, Vector3 position, PrototypePlayerHealth target,

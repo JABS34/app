@@ -11,6 +11,7 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
 
     [SerializeField] private PrototypePlayerHealth player;
     [SerializeField] private GameObject zombieTemplate;
+    [SerializeField] private PrototypeZombieEnemy[] dormantZombies;
     private bool started;
     private bool hordeActive;
     private float nextHordeAt;
@@ -35,6 +36,8 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
         player = playerHealth;
         zombieTemplate = template;
     }
+
+    public void SetDormantZombies(PrototypeZombieEnemy[] zombies) => dormantZombies = zombies;
 
     private void Update()
     {
@@ -61,10 +64,24 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
             float angle = (Mathf.PI * 2f * i / count) + UnityEngine.Random.Range(-0.22f, 0.22f);
             float radius = UnityEngine.Random.Range(11f, 16f);
             Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
-            GameObject zombie = Instantiate(zombieTemplate, player.transform.position + offset, Quaternion.identity);
+            PrototypeZombieEnemy enemy = Round == 1 && dormantZombies != null && i < dormantZombies.Length
+                ? dormantZombies[i]
+                : null;
+            GameObject zombie;
+            if (enemy != null)
+            {
+                zombie = enemy.gameObject;
+                zombie.transform.SetPositionAndRotation(player.transform.position + offset, Quaternion.identity);
+                zombie.SetActive(true);
+                enemy.enabled = true;
+            }
+            else
+            {
+                zombie = Instantiate(zombieTemplate, player.transform.position + offset, Quaternion.identity);
+                zombie.SetActive(true);
+                enemy = zombie.GetComponent<PrototypeZombieEnemy>();
+            }
             zombie.name = "Zombie_Ronda_" + Round.ToString("00") + "_" + (i + 1).ToString("00");
-            zombie.SetActive(true);
-            PrototypeZombieEnemy enemy = zombie.GetComponent<PrototypeZombieEnemy>();
             enemy.Initialize(player, zombie.transform.childCount > 0 ? zombie.transform.GetChild(0) : null,
                 healthMultiplier, speedMultiplier);
             enemy.Defeated += OnZombieDefeated;

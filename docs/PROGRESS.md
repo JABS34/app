@@ -25,18 +25,20 @@ Updated: 2026-10-09
 - Ground resources cover the five concept materials: wood, stone, fiber, scrap, and food. Trees can be chopped in three interactions and drop wood. One contextual button switches between `RECOGER`, `TALAR`, `FABRICAR`, and `ATACAR`; E performs the same interaction in the Editor.
 - A 12-slot inventory supports resource stacks up to 30. Items that do not fit remain in the world. A temporary workbench enables the document's provisional bat and axe recipes during preparation; crafted weapons equip automatically and change combat values, and the axe doubles wood from trees. Inventory and crafting screens pause the game. Inventory is not persisted between sessions.
 - The player can start manual shelter placement between hordes from the HUD, choose a wall (8 wood) or low barricade (4 wood), tap the ground to move a grid-snapped preview, rotate in 90-degree steps, and confirm placement. Existing colliders block placement; wood is charged only when a piece is successfully placed. Zombies now attack shelter pieces that block their path; the player can approach a damaged piece and repair it between hordes for 2 wood (+50 health). A small health bar appears above a damaged piece when the player is nearby. Health values and repair cost are provisional.
+- A scene visual pass adds a dark, foggy night setup, roughly 60 procedural pines plus dead trees and undergrowth, an abandoned shelter, a wrecked vehicle, a small ember camp, distinct 3D material pickup models, a detailed player rig, and three visible dormant zombies that activate as the first horde. Player and zombie limbs animate procedurally to keep the prototype asset-free and lightweight. Visual quality and Android performance still require an in-Unity review.
+- Fixed a Unity 6 startup exception in the HUD by switching its built-in font lookup to `LegacyRuntime.ttf`.
 - The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
 - Unity editor menu `BERNEOX > Crear inicio y catálogo` opens the existing hub scene, or creates it if missing.
 
 ## Checks and limitations
 
-- Script compilation and Unity Play verification for enemy attacks and shelter repair are pending. Unity Editor and a C# compiler are unavailable in this environment.
+- Unity Editor imported and compiled the earlier prototype scripts, but the recent scene/art pass has not yet been compiled or visually checked in the active Editor. A Unity 6 font exception was found in the previous Play attempt and has been fixed in source.
 - `git diff --check` is run for this change before commit.
 - The Unity Editor Play preview has not yet been visually checked. Unity was blocked at its activation/licensing screen; accepting Unity's terms must be done by the user.
 - This is still an early prototype. Online accounts, networking, currency/rewards, and the other catalog games are not implemented.
 
 ## Prioritized next tasks
 
-1. Run `ZombiePrototype` in Unity to verify construction placement, enemy targeting, repair, gathering, inventory limits, crafting, horde timing, camera, and touch controls.
-2. Verify shelter health bar visibility and tune zombie targeting after visual play checks.
+1. Let Unity reimport the scene and compile the visual upgrade; inspect the Console and review the player, visible zombies, forest readability, and touch HUD in Play.
+2. Verify construction placement, enemy targeting, repair, gathering, inventory limits, crafting, horde timing, camera, and mobile performance.
 3. Tune round difficulty and connect Zombie Survival to the launcher after the mode has been visually checked and feels playable.

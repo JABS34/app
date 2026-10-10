@@ -634,8 +634,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         RectTransform rect = go.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
         Text text = go.GetComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        if (text.font == null) text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.text = value;
         text.fontSize = size;
         text.fontStyle = style;
