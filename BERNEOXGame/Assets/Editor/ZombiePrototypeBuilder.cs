@@ -43,9 +43,10 @@ public static class ZombiePrototypeBuilder
         lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
 
         new GameObject("Touch Joystick").AddComponent<PrototypeJoystick>();
-        PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
-        PlayerSettings.allowedAutorotateToPortrait = false;
-        PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+        new GameObject("Scene Orientation").AddComponent<BerneoxSceneOrientation>().SetOrientation(ScreenOrientation.LandscapeLeft);
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
+        PlayerSettings.allowedAutorotateToPortrait = true;
+        PlayerSettings.allowedAutorotateToPortraitUpsideDown = true;
         PlayerSettings.allowedAutorotateToLandscapeLeft = true;
         PlayerSettings.allowedAutorotateToLandscapeRight = true;
 

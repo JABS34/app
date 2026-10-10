@@ -23,7 +23,15 @@ public sealed class PrototypePlayerController : MonoBehaviour
         }
         input = Vector2.ClampMagnitude(input, 1f);
 
-        Vector3 move = new Vector3(input.x, 0f, input.y);
+        Camera view = Camera.main;
+        Vector3 forward = view != null ? view.transform.forward : Vector3.forward;
+        Vector3 right = view != null ? view.transform.right : Vector3.right;
+        forward.y = 0f;
+        right.y = 0f;
+        forward.Normalize();
+        right.Normalize();
+        Vector3 move = right * input.x + forward * input.y;
+        move = Vector3.ClampMagnitude(move, 1f);
         if (move.sqrMagnitude > 0.001f)
         {
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(move), turnSpeed * Time.deltaTime);

@@ -16,7 +16,7 @@ El documento maestro v2.0 es la referencia de producto. El proyecto Unity 6.6.5f
 
 ## Aún por decidir
 
-- Ángulo definitivo de cámara 3D: tercera persona o isométrica. La cámara elevada detrás del personaje del prototipo es solo provisional.
+- Perspectiva de cámara confirmada: tercera persona detrás del personaje. La altura, distancia y suavizado siguen provisionales hasta comprobarse dentro de Unity y en Android.
 - Alcance exacto del primer prototipo jugable.
 - Requisitos mínimos de Android y modo sin conexión.
 

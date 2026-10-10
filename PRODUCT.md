@@ -33,7 +33,7 @@ Una plataforma móvil que integra varios juegos en una aplicación con cuenta, p
 - Los jugadores podrán tener progreso, récords, misiones y logros compartidos entre las áreas de la plataforma, según se implemente cada función.
 - El objetivo de edades de 6 a 30 está confirmado. Clasificación de contenido, protección de menores, métodos de cuenta, políticas de anuncios y compras para menores permanecen pendientes.
 - Se desea que la plataforma tenga funciones en línea, pero no se ha decidido si cada juego requerirá conexión ni qué funciones estarán disponibles sin conexión.
-- La cámara y el alcance exacto del primer prototipo de Zombie Survival siguen pendientes. Los valores de combate y economía del documento son provisionales hasta probarlos.
+- La perspectiva de cámara de Zombie Survival está confirmada: tercera persona detrás del personaje. Su altura, distancia y suavizado, junto con el alcance exacto del primer prototipo, siguen provisionales o pendientes. Los valores de combate y economía del documento son provisionales hasta probarlos.
 
 ## Brand Commitments
 

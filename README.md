@@ -14,6 +14,8 @@ El proyecto Unity 6.6.5f1 está en `BERNEOXGame/`, con plantilla Universal 3D y 
 - COINS será una moneda virtual interna, sin retiro ni conversión a dinero.
 - Recompensas y otras operaciones críticas se validarán en el servidor.
 
-## Siguiente paso
+## Estado actual
 
-En Unity, crear la escena inicial desde el menú `BERNEOX > Crear escena de prototipo Zombie Survival` y pulsar Play. Detalles en `docs/PROTOTIPO_ZOMBIE.md`. El ángulo de cámara sigue pendiente y la cámara actual es provisional.
+La escena inicial de BERNEOX ya está configurada como primera escena. La pantalla principal y el catálogo son un prototipo runtime con apertura animada, tema claro/oscuro y objetos 3D. El Editor de Unity aún debe activarse para revisar la vista previa.
+
+La perspectiva elegida para Zombie Survival es tercera persona detrás del personaje. Sus controles, cámara y escena todavía deben comprobarse. Consulta [docs/PROGRESS.md](docs/PROGRESS.md) para el estado detallado y las próximas tareas, y [docs/PROTOTIPO_ZOMBIE.md](docs/PROTOTIPO_ZOMBIE.md) para la escena de prueba.
