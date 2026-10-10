@@ -62,18 +62,16 @@ public static class ZombiePrototypeBuilder
 
         new GameObject("Touch Joystick").AddComponent<PrototypeJoystick>();
         new GameObject("Combat HUD").AddComponent<PrototypeCombatHud>();
+        PrototypeHordeDirector hordeDirector = new GameObject("Horde Director").AddComponent<PrototypeHordeDirector>();
         Material zombieMaterial = CreateMaterial("ZombieMaterial", new Color(0.38f, 0.49f, 0.39f));
         Material zombieDetail = CreateMaterial("ZombieDetail", new Color(0.22f, 0.31f, 0.27f));
         Material zombieEyes = CreateMaterial("ZombieEyes", new Color(0.95f, 0.28f, 0.38f));
-        Vector3[] zombiePositions =
-        {
-            new Vector3(-1.5f, 1f, 8f),
-            new Vector3(4.5f, 1f, 11f),
-            new Vector3(-5f, 1f, 13f),
-            new Vector3(2f, 1f, 17f)
-        };
-        for (int i = 0; i < zombiePositions.Length; i++)
-            CreateZombie(i + 1, zombiePositions[i], playerHealth, zombieMaterial, zombieDetail, zombieEyes);
+        GameObject zombieTemplate = CreateZombie(0, new Vector3(0f, 1f, 12f), playerHealth, zombieMaterial, zombieDetail, zombieEyes);
+        zombieTemplate.name = "Zombie_Wave_Template";
+        zombieTemplate.SetActive(false);
+        hordeDirector.Initialize(playerHealth, zombieTemplate);
+        PrototypeResourcePickup.Spawn(new Vector3(2f, 0f, 1.5f), PrototypeResourceType.Wood, 3);
+        PrototypeResourcePickup.Spawn(new Vector3(-2f, 0f, 2f), PrototypeResourceType.Scrap, 1);
         new GameObject("Scene Orientation").AddComponent<BerneoxSceneOrientation>().SetOrientation(ScreenOrientation.LandscapeLeft);
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
         PlayerSettings.allowedAutorotateToPortrait = true;
@@ -87,10 +85,10 @@ public static class ZombiePrototypeBuilder
             if (existing.path != ScenePath) buildScenes.Add(existing);
         buildScenes.Add(new EditorBuildSettingsScene(ScenePath, true));
         EditorBuildSettings.scenes = buildScenes.ToArray();
-        EditorUtility.DisplayDialog("Prototipo creado", "ZombiePrototype ya tiene movimiento, cuatro zombis de prueba, vida y botón de ataque. En Play, muévete con WASD o joystick y usa Espacio o ATACAR. Los valores de combate son provisionales.", "Aceptar");
+        EditorUtility.DisplayDialog("Prototipo creado", "ZombiePrototype ya tiene movimiento, materiales iniciales y hordas. Prepárate antes de la primera ronda; después de derrotar una horda tendrás tres minutos antes de la siguiente. En Play, muévete con WASD o joystick, ataca con Espacio/ATACAR y recoge con E/RECOGER. Los valores de dificultad son provisionales.", "Aceptar");
     }
 
-    private static void CreateZombie(int index, Vector3 position, PrototypePlayerHealth target,
+    private static GameObject CreateZombie(int index, Vector3 position, PrototypePlayerHealth target,
         Material bodyMaterial, Material detailMaterial, Material eyeMaterial)
     {
         GameObject zombie = new GameObject("Zombie_Prototype_" + index.ToString("00"));
@@ -116,6 +114,7 @@ public static class ZombiePrototypeBuilder
 
         PrototypeZombieEnemy enemy = zombie.AddComponent<PrototypeZombieEnemy>();
         enemy.Initialize(target, visual);
+        return zombie;
     }
 
     private static Transform CreatePart(PrimitiveType type, string name, Transform parent, Vector3 position,

@@ -13,6 +13,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private PrototypeMeleeAttack meleeAttack;
     private PrototypePickupInteractor pickupInteractor;
     private PrototypeResourceInventory inventory;
+    private PrototypeHordeDirector hordeDirector;
     private Image healthFill;
     private Text healthValue;
     private Text zombieCount;
@@ -21,7 +22,6 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private Button attackButton;
     private RectTransform attackButtonRect;
     private CanvasGroup defeatOverlay;
-    private int remainingZombies;
     private float displayedHealth = 1f;
     private Coroutine attackPulse;
 
@@ -36,16 +36,13 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         meleeAttack = FindAnyObjectByType<PrototypeMeleeAttack>();
         pickupInteractor = FindAnyObjectByType<PrototypePickupInteractor>();
         inventory = FindAnyObjectByType<PrototypeResourceInventory>();
+        hordeDirector = FindAnyObjectByType<PrototypeHordeDirector>();
         if (playerHealth == null || meleeAttack == null)
         {
             Debug.LogError("Combat HUD needs a player health component and melee attack component.");
             enabled = false;
             return;
         }
-
-        PrototypeZombieEnemy[] zombies = FindObjectsByType<PrototypeZombieEnemy>();
-        remainingZombies = zombies.Length;
-        foreach (PrototypeZombieEnemy zombie in zombies) zombie.Defeated += OnZombieDefeated;
 
         BuildInterface();
         playerHealth.HealthChanged += OnHealthChanged;
@@ -62,8 +59,6 @@ public sealed class PrototypeCombatHud : MonoBehaviour
             playerHealth.Defeated -= OnPlayerDefeated;
         }
         if (meleeAttack != null) meleeAttack.Attacked -= OnAttackExecuted;
-        foreach (PrototypeZombieEnemy zombie in FindObjectsByType<PrototypeZombieEnemy>())
-            if (zombie != null) zombie.Defeated -= OnZombieDefeated;
     }
 
     private void Update()
@@ -76,6 +71,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         if (attackLabel != null) attackLabel.text = pickupInteractor != null && pickupInteractor.CanCollect ? "RECOGER" : "ATACAR";
         if (resourceCount != null && inventory != null)
             resourceCount.text = "MADERA  " + inventory.GetAmount(PrototypeResourceType.Wood) + "     CHATARRA  " + inventory.GetAmount(PrototypeResourceType.Scrap);
+        if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
     }
 
     private void BuildInterface()
@@ -154,7 +150,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         background.color = Ink;
         background.raycastTarget = false;
 
-        zombieCount = MakeText(panel, "Zombie Counter", "ZOMBIS  " + remainingZombies, 23, FontStyle.Bold, Color.white);
+        zombieCount = MakeText(panel, "Zombie Counter", "PREPÁRATE", 20, FontStyle.Bold, Color.white);
         zombieCount.alignment = TextAnchor.MiddleCenter;
         Anchor(zombieCount.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-24f, -16f));
     }
@@ -226,12 +222,6 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     {
         if (healthValue != null) healthValue.text = Mathf.CeilToInt(current) + " / " + Mathf.CeilToInt(maximum);
         if (healthFill != null) healthFill.fillAmount = maximum > 0f ? current / maximum : 0f;
-    }
-
-    private void OnZombieDefeated(PrototypeZombieEnemy zombie)
-    {
-        remainingZombies = Mathf.Max(0, remainingZombies - 1);
-        if (zombieCount != null) zombieCount.text = remainingZombies > 0 ? "ZOMBIS  " + remainingZombies : "ZONA DESPEJADA";
     }
 
     private void OnPlayerDefeated()

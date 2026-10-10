@@ -11,6 +11,7 @@ Updated: 2026-10-09
 - The launcher uses a mainly purple palette, with light and dark themes.
 - The launcher opens with an animated BERNEOX wordmark, then shows the game catalog.
 - Zombie Survival uses a third-person camera behind the character. Camera distance, height, and smoothing remain provisional until tested.
+- Zombie Survival is a night-forest survival game structured around recurring hordes. Round one is easy for learning and gathering; later rounds grow gradually harder. Between hordes, players explore, collect ground resources, chop trees, craft, and prepare or repair shelter. The confirmed interval is 3 minutes between the end of one horde and the start of the next. The initial wait before round one remains provisional.
 
 ## Current implementation
 
@@ -20,21 +21,21 @@ Updated: 2026-10-09
 - `BERNEOXHub.unity` is now the first enabled build scene. It contains the launcher controller and per-scene portrait orientation component; `SampleScene` is retained.
 - Zombie Survival prototype generation now assigns landscape orientation to that scene while the launcher remains portrait.
 - Zombie Survival movement uses camera-relative forward/right directions, and its follow camera stays behind the character as the character turns.
-- The Zombie Survival scene builder now creates four chasing enemies, provisional player health, a circular purple touch joystick, a melee attack button, and a retry overlay. The attack also works with Space in the Editor.
+- The Zombie Survival scene builder creates a provisional horde loop: 60 seconds of initial preparation, an easy first wave of three zombies, then a three-minute break after each cleared wave. Later waves add enemies and raise health and speed gradually. The HUD shows the round state/countdown. The player can attack using the touch button or Space in the Editor.
+- Defeated zombies drop provisional wood or scrap. A small starting supply is available during the initial preparation period. Players collect nearby resources with the contextual action button (or E in the Editor); a simple local counter displays totals. The full inventory, gathering nodes, tree chopping, crafting, and shelter are not implemented yet.
 - The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
 - Unity editor menu `BERNEOX > Crear inicio y catálogo` opens the existing hub scene, or creates it if missing.
 
 ## Checks and limitations
 
-- `dotnet restore` and `dotnet build BERNEOXGame.slnx --no-restore`: passed, 0 warnings and 0 errors.
-- `git diff --check`: passed.
+- Script compilation and Unity Play verification for the current horde changes are pending. `dotnet` is not available in the current environment, and Unity was previously blocked at its licensing screen.
+- A prior `git diff --check` passed before these horde changes.
 - The Unity Editor Play preview has not yet been visually checked. Unity was blocked at its activation/licensing screen; accepting Unity's terms must be done by the user.
 - This is still an early prototype. Online accounts, networking, currency/rewards, and the other catalog games are not implemented.
 
 ## Prioritized next tasks
 
-1. Run `BERNEOXHub` in Unity and fix any visual or runtime issues found on the intended Android aspect ratios.
-2. Verify and tune the Zombie Survival camera, touch joystick, health display, attack button, enemy behavior, and landscape layout.
-3. Connect Zombie Survival to the launcher once it has been visually checked and feels playable.
-4. Add real art, sound, and accessibility polish after the first visual review.
-5. Plan online services only after the offline prototype and product requirements are reviewed.
+1. Add ground resource gathering, tree chopping, and the first inventory so the player can prepare between hordes.
+2. Add basic crafting and shelter defenses, then tune round difficulty and the full survival loop through play.
+3. Run `ZombiePrototype` in Unity to verify the horde timing, HUD, enemy spawning, camera, and touch controls.
+4. Run the launcher and connect Zombie Survival to it once the mode has been visually checked and feels playable.

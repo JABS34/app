@@ -16,6 +16,7 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
     private Transform visual;
     private Vector3 visualStart;
     private float health;
+    private float speedMultiplier = 1f;
     private float nextAttackTime;
     private float verticalSpeed;
     private bool defeated;
@@ -36,10 +37,12 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
         }
     }
 
-    public void Initialize(PrototypePlayerHealth player, Transform visualRoot)
+    public void Initialize(PrototypePlayerHealth player, Transform visualRoot, float healthMultiplier = 1f, float speedScale = 1f)
     {
         target = player;
         visual = visualRoot;
+        health = maximumHealth * Mathf.Max(0.1f, healthMultiplier);
+        speedMultiplier = Mathf.Max(0.1f, speedScale);
         if (visual != null) visualStart = visual.localPosition;
     }
 
@@ -62,7 +65,7 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
         if (controller.isGrounded && verticalSpeed < 0f) verticalSpeed = -2f;
         else verticalSpeed += Physics.gravity.y * Time.deltaTime;
 
-        Vector3 velocity = (moving ? direction * moveSpeed : Vector3.zero) + Vector3.up * verticalSpeed;
+        Vector3 velocity = (moving ? direction * moveSpeed * speedMultiplier : Vector3.zero) + Vector3.up * verticalSpeed;
         controller.Move(velocity * Time.deltaTime);
 
         if (visual != null)

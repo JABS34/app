@@ -34,6 +34,7 @@ Una plataforma móvil que integra varios juegos en una aplicación con cuenta, p
 - El objetivo de edades de 6 a 30 está confirmado. Clasificación de contenido, protección de menores, métodos de cuenta, políticas de anuncios y compras para menores permanecen pendientes.
 - Se desea que la plataforma tenga funciones en línea, pero no se ha decidido si cada juego requerirá conexión ni qué funciones estarán disponibles sin conexión.
 - La perspectiva de cámara de Zombie Survival está confirmada: tercera persona detrás del personaje. Su altura, distancia y suavizado, junto con el alcance exacto del primer prototipo, siguen provisionales o pendientes. Los valores de combate y economía del documento son provisionales hasta probarlos.
+- Zombie Survival será una experiencia nocturna de supervivencia en el bosque con hordas recurrentes. La primera ronda será fácil para aprender y recolectar; las siguientes aumentarán gradualmente la dificultad. Entre hordas se explora, recogen materiales del suelo y de árboles, se fabrica equipo y se prepara o repara el refugio. El jugador confirmó 3 minutos desde el final de una horda hasta el inicio de la siguiente. La espera antes de la primera horda y la progresión concreta de dificultad siguen provisionales.
 
 ## Brand Commitments
 
