@@ -13,6 +13,7 @@ public static class ZombiePrototypeVisualUpgrade
     private const string MarkerName = "APOCALYPTIC_SCENE_DRESSING";
     private const string VillageMarkerName = "APOCALYPTIC_VILLAGE_DETAILS_V2";
     private const string DistrictMarkerName = "APOCALYPTIC_DISTRICT_AND_CHARACTER_V3";
+    private const string NaturalForestMarkerName = "NATURAL_FOREST_REFINEMENT_V4";
     private static Mesh coneMesh;
     private static Mesh grassMesh;
     private static readonly Dictionary<Color, Material> Materials = new Dictionary<Color, Material>();
@@ -57,6 +58,12 @@ public static class ZombiePrototypeVisualUpgrade
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("Zombie Survival: distrito ampliado, siluetas orgánicas y superviviente detallado aplicados.");
         }
+        else if (!HasNaturalForestPass(scene))
+        {
+            RefineNaturalForest(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: copas forestales naturales y materiales mate aplicados.");
+        }
     }
 
     [MenuItem("BERNEOX/Actualizar escenario apocalíptico")]
@@ -76,6 +83,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasUpgradeMarker(scene)) UpgradeScene(scene);
         if (!HasVillagePass(scene)) AddVillageDetails(scene);
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
+        if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -507,6 +515,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasUpgradeMarker(scene)) UpgradeScene(scene);
         if (!HasVillagePass(scene)) AddVillageDetails(scene);
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
+        if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -522,6 +531,115 @@ public static class ZombiePrototypeVisualUpgrade
         foreach (GameObject root in scene.GetRootGameObjects())
             if (root.name == DistrictMarkerName) return true;
         return false;
+    }
+
+    private static bool HasNaturalForestPass(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+            if (root.name == NaturalForestMarkerName) return true;
+        return false;
+    }
+
+    private static void RefineNaturalForest(Scene scene)
+    {
+        GameObject marker = new GameObject(NaturalForestMarkerName);
+        SceneManager.MoveGameObjectToScene(marker, scene);
+        Material foliage = SurfaceMaterial("NaturalForestFoliage", new Color(0.22f, 0.39f, 0.27f), SurfaceKind.Foliage);
+        foliage.color = Color.white;
+        SetMatte(foliage);
+        int variation = 0;
+        foreach (Transform canopy in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (canopy.name != "Soft Evergreen Canopy") continue;
+            Transform organic = canopy.Find("Natural Canopy Form");
+            if (organic == null)
+            {
+                organic = new GameObject("Natural Canopy Form").transform;
+                organic.SetParent(canopy, false);
+            }
+            for (int i = 0; i < canopy.childCount; i++)
+            {
+                Transform oldLobe = canopy.GetChild(i);
+                if (oldLobe != organic) oldLobe.gameObject.SetActive(false);
+            }
+            MeshFilter filter = organic.GetComponent<MeshFilter>();
+            if (filter == null) filter = organic.gameObject.AddComponent<MeshFilter>();
+            MeshRenderer renderer = organic.GetComponent<MeshRenderer>();
+            if (renderer == null) renderer = organic.gameObject.AddComponent<MeshRenderer>();
+            filter.sharedMesh = BuildOrganicCanopyMesh(variation++ * 137 + 29);
+            renderer.sharedMaterial = foliage;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+        }
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private static Mesh BuildOrganicCanopyMesh(int seed)
+    {
+        Random.State previous = Random.state;
+        Random.InitState(seed);
+        const int sides = 20;
+        float[] heights = { 0.02f, 0.26f, 0.62f, 1.0f, 1.42f, 1.86f, 2.28f, 2.72f, 3.12f, 3.52f, 3.9f, 4.22f, 4.48f, 4.68f };
+        float[] radii = { 0.26f, 0.62f, 1.16f, 1.48f, 1.37f, 1.24f, 1.18f, 1.02f, 0.94f, 0.77f, 0.69f, 0.49f, 0.32f, 0.22f };
+        int ringCount = heights.Length;
+        Vector3[] vertices = new Vector3[ringCount * sides + 2];
+        int[] triangles = new int[(ringCount - 1) * sides * 6 + sides * 6];
+        float phase = Random.Range(0f, Mathf.PI * 2f);
+        float leanX = Random.Range(-0.18f, 0.18f);
+        float leanZ = Random.Range(-0.18f, 0.18f);
+        for (int ring = 0; ring < ringCount; ring++)
+        {
+            float t = ring / (float)(ringCount - 1);
+            for (int side = 0; side < sides; side++)
+            {
+                float angle = side * Mathf.PI * 2f / sides;
+                float lobes = 1f + 0.105f * Mathf.Sin(angle * 3f + phase + ring * 0.17f)
+                    + 0.055f * Mathf.Sin(angle * 5f - phase * 0.7f)
+                    + Random.Range(-0.035f, 0.035f);
+                float radius = radii[ring] * lobes;
+                float centerX = leanX * t + 0.035f * Mathf.Sin(t * 8f + phase);
+                float centerZ = leanZ * t + 0.035f * Mathf.Cos(t * 6f + phase);
+                vertices[ring * sides + side] = new Vector3(centerX + Mathf.Cos(angle) * radius,
+                    heights[ring], centerZ + Mathf.Sin(angle) * radius * 0.90f);
+            }
+        }
+        int bottomCap = ringCount * sides;
+        int topCap = bottomCap + 1;
+        vertices[bottomCap] = new Vector3(0f, 0.02f, 0f);
+        vertices[topCap] = new Vector3(leanX, 4.70f, leanZ);
+        int index = 0;
+        for (int ring = 0; ring < ringCount - 1; ring++)
+        for (int side = 0; side < sides; side++)
+        {
+            int next = (side + 1) % sides;
+            int a = ring * sides + side;
+            int b = ring * sides + next;
+            int c = (ring + 1) * sides + side;
+            int d = (ring + 1) * sides + next;
+            triangles[index++] = a; triangles[index++] = c; triangles[index++] = b;
+            triangles[index++] = b; triangles[index++] = c; triangles[index++] = d;
+        }
+        for (int side = 0; side < sides; side++)
+        {
+            int next = (side + 1) % sides;
+            triangles[index++] = bottomCap; triangles[index++] = next; triangles[index++] = side;
+            int last = (ringCount - 1) * sides;
+            triangles[index++] = topCap; triangles[index++] = last + side; triangles[index++] = last + next;
+        }
+        Mesh mesh = new Mesh { name = "Irregular Evergreen Canopy" };
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        Vector2[] uv = new Vector2[vertices.Length];
+        for (int ring = 0; ring < ringCount; ring++)
+        for (int side = 0; side < sides; side++)
+            uv[ring * sides + side] = new Vector2(side / (float)sides, heights[ring] / 4.70f);
+        uv[bottomCap] = new Vector2(0.5f, 0f);
+        uv[topCap] = new Vector2(0.5f, 1f);
+        mesh.uv = uv;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        Random.state = previous;
+        return mesh;
     }
 
     private static void AddDistrictAndCharacterPass(Scene scene)
@@ -662,7 +780,7 @@ public static class ZombiePrototypeVisualUpgrade
         EditorSceneManager.MarkSceneDirty(scene);
     }
 
-    private enum SurfaceKind { Plaster, Roof, Brick, Wood, Rust, Concrete, Asphalt, Mud }
+    private enum SurfaceKind { Plaster, Roof, Brick, Wood, Rust, Concrete, Asphalt, Mud, Foliage }
 
     private static Material SurfaceMaterial(string name, Color tint, SurfaceKind kind)
     {
@@ -673,7 +791,12 @@ public static class ZombiePrototypeVisualUpgrade
 
         string materialPath = surfaceFolder + "/M_" + name + ".mat";
         Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-        if (material != null) return material;
+        if (material != null)
+        {
+            SetMatte(material);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
 
         string texturePath = surfaceFolder + "/T_" + name + ".png";
         Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
@@ -703,6 +826,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (texture != null) material.mainTexture = texture;
         float tiling = kind == SurfaceKind.Asphalt || kind == SurfaceKind.Mud ? 3.2f : kind == SurfaceKind.Wood ? 1.5f : 2.1f;
         material.mainTextureScale = new Vector2(tiling, tiling);
+        SetMatte(material);
         AssetDatabase.CreateAsset(material, materialPath);
         return material;
     }
@@ -752,6 +876,8 @@ public static class ZombiePrototypeVisualUpgrade
                 shade = 0.50f + broad * 0.40f + fine * 0.12f - (fine > 0.79f ? 0.12f : 0f);
             else if (kind == SurfaceKind.Mud)
                 shade = 0.58f + broad * 0.43f + fine * 0.15f;
+            else if (kind == SurfaceKind.Foliage)
+                shade = 0.48f + broad * 0.58f + fine * 0.16f + (fine > 0.73f ? 0.16f : 0f);
 
             pixels[y * size + x] = new Color(tint.r * shade, tint.g * shade, tint.b * shade, 1f);
         }
@@ -1210,6 +1336,14 @@ public static class ZombiePrototypeVisualUpgrade
         Material created = new Material(shader) { color = color };
         Materials[color] = created;
         return created;
+    }
+
+    private static void SetMatte(Material material)
+    {
+        if (material == null) return;
+        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.08f);
+        if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.08f);
+        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
     }
 
     private static Material EmissiveMaterial(Color color)
