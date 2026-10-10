@@ -64,6 +64,7 @@ public static class ZombiePrototypeBuilder
         new GameObject("Touch Joystick").AddComponent<PrototypeJoystick>();
         new GameObject("Combat HUD").AddComponent<PrototypeCombatHud>();
         PrototypeHordeDirector hordeDirector = new GameObject("Horde Director").AddComponent<PrototypeHordeDirector>();
+        PrototypeShelterBuilder shelterBuilder = new GameObject("Shelter Builder").AddComponent<PrototypeShelterBuilder>();
         Material zombieMaterial = CreateMaterial("ZombieMaterial", new Color(0.38f, 0.49f, 0.39f));
         Material zombieDetail = CreateMaterial("ZombieDetail", new Color(0.22f, 0.31f, 0.27f));
         Material zombieEyes = CreateMaterial("ZombieEyes", new Color(0.95f, 0.28f, 0.38f));
@@ -71,6 +72,7 @@ public static class ZombiePrototypeBuilder
         zombieTemplate.name = "Zombie_Wave_Template";
         zombieTemplate.SetActive(false);
         hordeDirector.Initialize(playerHealth, zombieTemplate);
+        shelterBuilder.Initialize(player.transform, playerInventory, hordeDirector);
         PrototypeResourcePickup.Spawn(new Vector3(2f, 0f, 1.5f), PrototypeResourceType.Wood, 3);
         PrototypeResourcePickup.Spawn(new Vector3(-2f, 0f, 2f), PrototypeResourceType.Scrap, 1);
         PrototypeResourcePickup.Spawn(new Vector3(-1f, 0f, 3f), PrototypeResourceType.Stone, 3);

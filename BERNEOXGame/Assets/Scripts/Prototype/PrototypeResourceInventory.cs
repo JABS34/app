@@ -49,6 +49,14 @@ public sealed class PrototypeResourceInventory : MonoBehaviour
 
     public bool TryAddResource(PrototypeResourceType type, int amount) => TryAdd(ToItem(type), amount);
 
+    public bool TrySpendResource(PrototypeResourceType type, int amount)
+    {
+        if (amount <= 0 || GetAmount(type) < amount) return false;
+        Remove(ToItem(type), amount);
+        Changed?.Invoke();
+        return true;
+    }
+
     public bool TryCraftBat(out string message)
     {
         return TryCraft(PrototypeInventoryItem.Bat, PrototypeResourceType.Wood, 6,

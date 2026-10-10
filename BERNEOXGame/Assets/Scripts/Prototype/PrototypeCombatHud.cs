@@ -15,6 +15,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private PrototypePickupInteractor pickupInteractor;
     private PrototypeResourceInventory inventory;
     private PrototypeHordeDirector hordeDirector;
+    private PrototypeShelterBuilder shelterBuilder;
     private Image healthFill;
     private Text healthValue;
     private Text zombieCount;
@@ -30,6 +31,9 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private CanvasGroup defeatOverlay;
     private GameObject inventoryOverlay;
     private GameObject craftingOverlay;
+    private GameObject buildingOverlay;
+    private GameObject buildingControls;
+    private Text buildingStatus;
     private float displayedHealth = 1f;
     private Coroutine attackPulse;
 
@@ -45,6 +49,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         pickupInteractor = FindAnyObjectByType<PrototypePickupInteractor>();
         inventory = FindAnyObjectByType<PrototypeResourceInventory>();
         hordeDirector = FindAnyObjectByType<PrototypeHordeDirector>();
+        shelterBuilder = FindAnyObjectByType<PrototypeShelterBuilder>();
         if (playerHealth == null || meleeAttack == null)
         {
             Debug.LogError("Combat HUD needs a player health component and melee attack component.");
@@ -99,7 +104,17 @@ public sealed class PrototypeCombatHud : MonoBehaviour
                 + "   CHATARRA " + inventory.GetAmount(PrototypeResourceType.Scrap)
                 + "   COMIDA " + inventory.GetAmount(PrototypeResourceType.Food);
         if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
+        if (buildingStatus != null && shelterBuilder != null && shelterBuilder.IsPlacing)
+            buildingStatus.text = shelterBuilder.PlacementStatus;
+        if (buildingControls != null && shelterBuilder != null && !shelterBuilder.IsPlacing)
+            buildingControls.SetActive(false);
         if (Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame) ToggleInventory();
+        if (Keyboard.current != null && shelterBuilder != null && shelterBuilder.IsPlacing)
+        {
+            if (Keyboard.current.rKey.wasPressedThisFrame) shelterBuilder.RotatePlacement();
+            if (Keyboard.current.enterKey.wasPressedThisFrame) TryPlaceShelterPiece();
+            if (Keyboard.current.escapeKey.wasPressedThisFrame) CancelShelterPlacement();
+        }
         if (toastGroup != null && toastGroup.alpha > 0f && Time.unscaledTime > toastVisibleUntil)
             toastGroup.alpha = Mathf.MoveTowards(toastGroup.alpha, 0f, Time.unscaledDeltaTime * 2.5f);
     }
@@ -124,8 +139,10 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         BuildResourceCounter(root);
         BuildAttackButton(root);
         BuildInventoryButton(root);
+        BuildConstructionButton(root);
         BuildInventoryOverlay(root);
         BuildCraftingOverlay(root);
+        BuildConstructionOverlay(root);
         BuildToast(root);
     }
 
@@ -155,6 +172,98 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         Text label = MakeText(buttonObject.transform, "Inventory Button Label", "MOCHILA  ·  I", 18, FontStyle.Bold, Color.white);
         Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         label.alignment = TextAnchor.MiddleCenter;
+    }
+
+    private void BuildConstructionButton(RectTransform root)
+    {
+        GameObject buttonObject = new GameObject("Construction Button", typeof(RectTransform), typeof(Image), typeof(Button));
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.SetParent(root, false);
+        Anchor(rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -124f), new Vector2(200f, 58f));
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.32f, 0.62f, 0.44f, 1f);
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.AddListener(OpenConstruction);
+        Text label = MakeText(buttonObject.transform, "Construction Button Label", "CONSTRUIR", 17, FontStyle.Bold, Color.white);
+        Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        label.alignment = TextAnchor.MiddleCenter;
+    }
+
+    private void BuildConstructionOverlay(RectTransform root)
+    {
+        RectTransform overlay = NewRect(root, "Construction Overlay");
+        overlay.anchorMin = Vector2.zero;
+        overlay.anchorMax = Vector2.one;
+        overlay.offsetMin = Vector2.zero;
+        overlay.offsetMax = Vector2.zero;
+        overlay.SetAsLastSibling();
+        buildingOverlay = overlay.gameObject;
+        buildingOverlay.AddComponent<Image>().color = new Color(0.025f, 0.015f, 0.055f, 0.84f);
+        RectTransform card = NewRect(overlay, "Construction Card");
+        Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(820f, 500f));
+        card.gameObject.AddComponent<Image>().color = Ink;
+        Text title = MakeText(card, "Construction Title", "CONSTRUYE TU REFUGIO", 30, FontStyle.Bold, Color.white);
+        Anchor(title.rectTransform, new Vector2(0.08f, 0.78f), new Vector2(0.92f, 0.94f), Vector2.zero, Vector2.zero);
+        title.alignment = TextAnchor.MiddleCenter;
+        Button close = CreateOverlayButton(card, "Close Construction", "VOLVER", new Vector2(0f, -188f), new Vector2(180f, 58f), Violet);
+        close.onClick.AddListener(() => buildingOverlay.SetActive(false));
+        Button wall = CreateOverlayButton(card, "Build Wall", "PARED DE MADERA\n8 madera\nBloquea el paso", new Vector2(-190f, 24f), new Vector2(330f, 210f), new Color(0.35f, 0.48f, 0.36f, 1f));
+        wall.onClick.AddListener(() => BeginShelterPlacement(PrototypeShelterPieceType.Wall));
+        Button barricade = CreateOverlayButton(card, "Build Barricade", "BARRICADA\n4 madera\nDefensa baja", new Vector2(190f, 24f), new Vector2(330f, 210f), new Color(0.43f, 0.34f, 0.26f, 1f));
+        barricade.onClick.AddListener(() => BeginShelterPlacement(PrototypeShelterPieceType.Barricade));
+        buildingOverlay.SetActive(false);
+
+        RectTransform controls = NewRect(root, "Building Placement Controls");
+        Anchor(controls, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(780f, 180f));
+        controls.gameObject.AddComponent<Image>().color = Ink;
+        buildingControls = controls.gameObject;
+        buildingStatus = MakeText(controls, "Building Status", "TOCA EL SUELO PARA ELEGIR EL LUGAR", 18, FontStyle.Bold, Mint);
+        Anchor(buildingStatus.rectTransform, new Vector2(0.04f, 0.57f), new Vector2(0.96f, 0.96f), Vector2.zero, Vector2.zero);
+        buildingStatus.alignment = TextAnchor.MiddleCenter;
+        Button rotate = CreateOverlayButton(controls, "Rotate Piece", "ROTAR", new Vector2(-230f, -48f), new Vector2(190f, 62f), Violet);
+        rotate.onClick.AddListener(() => shelterBuilder?.RotatePlacement());
+        Button place = CreateOverlayButton(controls, "Place Piece", "COLOCAR", new Vector2(0f, -48f), new Vector2(210f, 62f), new Color(0.25f, 0.62f, 0.40f, 1f));
+        place.onClick.AddListener(TryPlaceShelterPiece);
+        Button cancel = CreateOverlayButton(controls, "Cancel Piece", "CANCELAR", new Vector2(230f, -48f), new Vector2(190f, 62f), Coral);
+        cancel.onClick.AddListener(CancelShelterPlacement);
+        buildingControls.SetActive(false);
+    }
+
+    private void OpenConstruction()
+    {
+        if (shelterBuilder == null) { ShowToast("CONSTRUCCIÓN NO DISPONIBLE"); return; }
+        if (hordeDirector != null && hordeDirector.HordeActive) { ShowToast("CONSTRUYE ENTRE HORDAS"); return; }
+        if (inventoryOverlay != null) inventoryOverlay.SetActive(false);
+        if (craftingOverlay != null) craftingOverlay.SetActive(false);
+        Time.timeScale = 0f;
+        buildingOverlay.SetActive(true);
+    }
+
+    private void BeginShelterPlacement(PrototypeShelterPieceType type)
+    {
+        Time.timeScale = 1f;
+        buildingOverlay.SetActive(false);
+        if (shelterBuilder == null || !shelterBuilder.SelectPiece(type))
+        {
+            ShowToast("CONSTRUYE ENTRE HORDAS");
+            return;
+        }
+        buildingControls.SetActive(true);
+    }
+
+    private void TryPlaceShelterPiece()
+    {
+        if (shelterBuilder == null) return;
+        if (shelterBuilder.PlacePiece()) ShowToast(shelterBuilder.PieceLabel + " COLOCADA");
+        else ShowToast(shelterBuilder.PlacementStatus.Contains("MADERA") ? "NO HAY MADERA SUFICIENTE" : "UBICACIÓN NO VÁLIDA");
+    }
+
+    private void CancelShelterPlacement()
+    {
+        shelterBuilder?.CancelPlacement();
+        if (buildingControls != null) buildingControls.SetActive(false);
+        Time.timeScale = 1f;
     }
 
     private void BuildInventoryOverlay(RectTransform root)
