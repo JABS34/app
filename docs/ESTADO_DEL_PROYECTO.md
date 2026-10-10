@@ -22,8 +22,8 @@ El documento maestro v2.0 es la referencia de producto. El proyecto Unity 6.6.5f
 
 ## Estado del prototipo
 
-Se crearon scripts para movimiento del personaje, cámara de seguimiento y joystick táctil, además de una herramienta de editor que genera una escena independiente `ZombiePrototype`. `SampleScene` se conserva. En Unity, la escena nueva se crea desde `BERNEOX > Crear escena de prototipo Zombie Survival`.
+El prototipo ahora incluye cámara tercera persona, joystick circular, cuatro zombis que persiguen y atacan, barra de vida y botón de ataque. La herramienta de editor genera una escena independiente `ZombiePrototype` y conserva `BERNEOXHub` y `SampleScene`. En Unity, la escena se crea o abre desde `BERNEOX > Crear escena de prototipo Zombie Survival`.
 
-Todavía falta comprobar la escena dentro de Unity y hacer una compilación Android. No hay enemigos, combate ni interfaz final.
+Todavía falta comprobar visualmente la escena dentro de Unity y hacer una compilación Android. Las cifras de combate y la interfaz son provisionales y no se han validado con jugadores.
 
 Las cifras de combate, recursos, fabricación y economía del documento están marcadas como provisionales; se ajustarán con pruebas.

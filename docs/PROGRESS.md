@@ -20,6 +20,8 @@ Updated: 2026-10-09
 - `BERNEOXHub.unity` is now the first enabled build scene. It contains the launcher controller and per-scene portrait orientation component; `SampleScene` is retained.
 - Zombie Survival prototype generation now assigns landscape orientation to that scene while the launcher remains portrait.
 - Zombie Survival movement uses camera-relative forward/right directions, and its follow camera stays behind the character as the character turns.
+- The Zombie Survival scene builder now creates four chasing enemies, provisional player health, a circular purple touch joystick, a melee attack button, and a retry overlay. The attack also works with Space in the Editor.
+- The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
 - Unity editor menu `BERNEOX > Crear inicio y catálogo` opens the existing hub scene, or creates it if missing.
 
 ## Checks and limitations
@@ -32,6 +34,7 @@ Updated: 2026-10-09
 ## Prioritized next tasks
 
 1. Run `BERNEOXHub` in Unity and fix any visual or runtime issues found on the intended Android aspect ratios.
-2. Verify and tune the Zombie Survival camera, touch joystick, movement, and landscape behavior; connect it to the launcher only when it is confirmed playable.
-3. Add real art, sound, and accessibility polish after the first visual review.
-4. Plan online services only after the offline prototype and product requirements are reviewed.
+2. Verify and tune the Zombie Survival camera, touch joystick, health display, attack button, enemy behavior, and landscape layout.
+3. Connect Zombie Survival to the launcher once it has been visually checked and feels playable.
+4. Add real art, sound, and accessibility polish after the first visual review.
+5. Plan online services only after the offline prototype and product requirements are reviewed.
