@@ -30,7 +30,7 @@ public sealed class PrototypeTreeNode : MonoBehaviour
         hitsRemaining = hitsToFell;
     }
 
-    public void Chop()
+    public void Chop(int woodMultiplier = 1)
     {
         if (IsFelled) return;
         hitsRemaining--;
@@ -42,7 +42,7 @@ public sealed class PrototypeTreeNode : MonoBehaviour
         }
 
         IsFelled = true;
-        PrototypeResourcePickup.Spawn(transform.position, PrototypeResourceType.Wood, woodYield);
+        PrototypeResourcePickup.Spawn(transform.position, PrototypeResourceType.Wood, woodYield * Mathf.Max(1, woodMultiplier));
         Destroy(gameObject);
     }
 }

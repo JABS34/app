@@ -5,23 +5,47 @@ using UnityEngine.InputSystem;
 /// <summary>Short-range attack action used by the prototype HUD and keyboard.</summary>
 public sealed class PrototypeMeleeAttack : MonoBehaviour
 {
-    [SerializeField] private float damage = 40f;
-    [SerializeField] private float range = 2.3f;
-    [SerializeField] private float cooldown = 0.55f;
+    [SerializeField] private float damage = 10f;
+    [SerializeField] private float range = 1.0f;
+    [SerializeField] private float cooldown = 0.4f;
     [SerializeField, Range(-1f, 1f)] private float facingThreshold = 0.3f;
 
     private float nextAttackTime;
+    public PrototypeWeapon EquippedWeapon { get; private set; } = PrototypeWeapon.Knife;
     public event Action Attacked;
+
+    public void Equip(PrototypeWeapon weapon)
+    {
+        EquippedWeapon = weapon;
+        switch (weapon)
+        {
+            case PrototypeWeapon.Bat:
+                damage = 18f;
+                range = 1.4f;
+                cooldown = 0.7f;
+                break;
+            case PrototypeWeapon.Axe:
+                damage = 28f;
+                range = 1.3f;
+                cooldown = 1.0f;
+                break;
+            default:
+                damage = 10f;
+                range = 1.0f;
+                cooldown = 0.4f;
+                break;
+        }
+    }
 
     private void Update()
     {
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+        if (Time.timeScale > 0f && Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
             Attack();
     }
 
     public void Attack()
     {
-        if (Time.time < nextAttackTime) return;
+        if (Time.timeScale <= 0f || Time.time < nextAttackTime) return;
         nextAttackTime = Time.time + cooldown;
         Attacked?.Invoke();
 
@@ -43,4 +67,11 @@ public sealed class PrototypeMeleeAttack : MonoBehaviour
             zombie.TakeDamage(damage);
         }
     }
+}
+
+public enum PrototypeWeapon
+{
+    Knife,
+    Bat,
+    Axe
 }

@@ -42,7 +42,8 @@ public static class ZombiePrototypeBuilder
         player.AddComponent<PrototypePlayerController>();
         PrototypePlayerHealth playerHealth = player.AddComponent<PrototypePlayerHealth>();
         player.AddComponent<PrototypeMeleeAttack>();
-        player.AddComponent<PrototypeResourceInventory>();
+        PrototypeResourceInventory playerInventory = player.AddComponent<PrototypeResourceInventory>();
+        playerInventory.AddStarterKnife();
         player.AddComponent<PrototypePickupInteractor>();
 
         var cameraObject = new GameObject("Main Camera");
@@ -72,9 +73,10 @@ public static class ZombiePrototypeBuilder
         hordeDirector.Initialize(playerHealth, zombieTemplate);
         PrototypeResourcePickup.Spawn(new Vector3(2f, 0f, 1.5f), PrototypeResourceType.Wood, 3);
         PrototypeResourcePickup.Spawn(new Vector3(-2f, 0f, 2f), PrototypeResourceType.Scrap, 1);
-        PrototypeResourcePickup.Spawn(new Vector3(-1f, 0f, 3f), PrototypeResourceType.Stone, 2);
-        PrototypeResourcePickup.Spawn(new Vector3(1f, 0f, 3.5f), PrototypeResourceType.Fiber, 2);
+        PrototypeResourcePickup.Spawn(new Vector3(-1f, 0f, 3f), PrototypeResourceType.Stone, 3);
+        PrototypeResourcePickup.Spawn(new Vector3(1f, 0f, 3.5f), PrototypeResourceType.Fiber, 4);
         PrototypeResourcePickup.Spawn(new Vector3(0f, 0f, 4f), PrototypeResourceType.Food, 1);
+        CreateCraftingStation(new Vector3(3f, 0f, 7f), CreateMaterial("WorkbenchMaterial", new Color(0.38f, 0.23f, 0.15f)));
         Material treeBark = CreateMaterial("TreeBark", new Color(0.30f, 0.17f, 0.12f));
         Material treeCanopy = CreateMaterial("TreeCanopy", new Color(0.15f, 0.32f, 0.2f));
         CreateTree(new Vector3(-22f, 0f, 5f), treeBark, treeCanopy);
@@ -96,7 +98,7 @@ public static class ZombiePrototypeBuilder
             if (existing.path != ScenePath) buildScenes.Add(existing);
         buildScenes.Add(new EditorBuildSettingsScene(ScenePath, true));
         EditorBuildSettings.scenes = buildScenes.ToArray();
-        EditorUtility.DisplayDialog("Prototipo creado", "ZombiePrototype ya tiene movimiento, materiales iniciales y hordas. Prepárate antes de la primera ronda; después de derrotar una horda tendrás tres minutos antes de la siguiente. En Play, muévete con WASD o joystick, ataca con Espacio/ATACAR y recoge con E/RECOGER. Los valores de dificultad son provisionales.", "Aceptar");
+        EditorUtility.DisplayDialog("Prototipo creado", "ZombiePrototype incluye recolección, árboles, mochila de 12 espacios, mesa para fabricar bate/hacha y hordas. Prepárate antes de la primera ronda; hay tres minutos entre hordas. En Play, muévete con WASD/joystick, ataca con Espacio, interactúa con E y abre la mochila con I. Los valores de dificultad son provisionales.", "Aceptar");
     }
 
     private static GameObject CreateZombie(int index, Vector3 position, PrototypePlayerHealth target,
@@ -143,6 +145,25 @@ public static class ZombiePrototypeBuilder
         CreatePart(PrimitiveType.Sphere, "Canopy Crown", visuals, new Vector3(0f, 5.8f, 0f), new Vector3(2.2f, 2.3f, 2.2f), canopyMaterial);
         tree.AddComponent<PrototypeTreeNode>().Initialize(visuals);
         return tree;
+    }
+
+    private static GameObject CreateCraftingStation(Vector3 position, Material material)
+    {
+        GameObject station = new GameObject("Workbench_Prototype");
+        station.transform.position = position;
+        station.AddComponent<PrototypeCraftingStation>();
+        BoxCollider interactionCollider = station.AddComponent<BoxCollider>();
+        interactionCollider.center = new Vector3(0f, 0.8f, 0f);
+        interactionCollider.size = new Vector3(3.2f, 2f, 2f);
+        interactionCollider.isTrigger = true;
+        Transform visuals = new GameObject("Workbench Visuals").transform;
+        visuals.SetParent(station.transform, false);
+        CreatePart(PrimitiveType.Cube, "Workbench Top", visuals, new Vector3(0f, 1.25f, 0f), new Vector3(2.8f, 0.25f, 1.6f), material);
+        CreatePart(PrimitiveType.Cube, "Workbench Leg", visuals, new Vector3(-1f, 0.6f, -0.5f), new Vector3(0.2f, 1.2f, 0.2f), material);
+        CreatePart(PrimitiveType.Cube, "Workbench Leg", visuals, new Vector3(1f, 0.6f, -0.5f), new Vector3(0.2f, 1.2f, 0.2f), material);
+        CreatePart(PrimitiveType.Cube, "Workbench Leg", visuals, new Vector3(-1f, 0.6f, 0.5f), new Vector3(0.2f, 1.2f, 0.2f), material);
+        CreatePart(PrimitiveType.Cube, "Workbench Leg", visuals, new Vector3(1f, 0.6f, 0.5f), new Vector3(0.2f, 1.2f, 0.2f), material);
+        return station;
     }
 
     private static Transform CreatePart(PrimitiveType type, string name, Transform parent, Vector3 position,

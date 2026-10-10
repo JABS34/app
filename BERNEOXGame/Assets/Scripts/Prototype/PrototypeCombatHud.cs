@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -19,9 +20,16 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private Text zombieCount;
     private Text resourceCount;
     private Text attackLabel;
+    private Text[] inventorySlotLabels = new Text[PrototypeResourceInventory.SlotCount];
+    private Text craftingMessage;
+    private Text toastLabel;
+    private CanvasGroup toastGroup;
+    private float toastVisibleUntil;
     private Button attackButton;
     private RectTransform attackButtonRect;
     private CanvasGroup defeatOverlay;
+    private GameObject inventoryOverlay;
+    private GameObject craftingOverlay;
     private float displayedHealth = 1f;
     private Coroutine attackPulse;
 
@@ -48,7 +56,15 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         playerHealth.HealthChanged += OnHealthChanged;
         playerHealth.Defeated += OnPlayerDefeated;
         meleeAttack.Attacked += OnAttackExecuted;
+        if (inventory != null) inventory.Changed += RefreshInventory;
+        if (pickupInteractor != null)
+        {
+            pickupInteractor.CraftingRequested += OpenCrafting;
+            pickupInteractor.MessageShown += ShowCraftingMessage;
+        }
+        Time.timeScale = 1f;
         OnHealthChanged(playerHealth.CurrentHealth, playerHealth.MaximumHealth);
+        RefreshInventory();
     }
 
     private void OnDestroy()
@@ -59,6 +75,13 @@ public sealed class PrototypeCombatHud : MonoBehaviour
             playerHealth.Defeated -= OnPlayerDefeated;
         }
         if (meleeAttack != null) meleeAttack.Attacked -= OnAttackExecuted;
+        if (inventory != null) inventory.Changed -= RefreshInventory;
+        if (pickupInteractor != null)
+        {
+            pickupInteractor.CraftingRequested -= OpenCrafting;
+            pickupInteractor.MessageShown -= ShowCraftingMessage;
+        }
+        Time.timeScale = 1f;
     }
 
     private void Update()
@@ -76,6 +99,9 @@ public sealed class PrototypeCombatHud : MonoBehaviour
                 + "   CHATARRA " + inventory.GetAmount(PrototypeResourceType.Scrap)
                 + "   COMIDA " + inventory.GetAmount(PrototypeResourceType.Food);
         if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
+        if (Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame) ToggleInventory();
+        if (toastGroup != null && toastGroup.alpha > 0f && Time.unscaledTime > toastVisibleUntil)
+            toastGroup.alpha = Mathf.MoveTowards(toastGroup.alpha, 0f, Time.unscaledDeltaTime * 2.5f);
     }
 
     private void BuildInterface()
@@ -97,6 +123,10 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         BuildZombieCounter(root);
         BuildResourceCounter(root);
         BuildAttackButton(root);
+        BuildInventoryButton(root);
+        BuildInventoryOverlay(root);
+        BuildCraftingOverlay(root);
+        BuildToast(root);
     }
 
     private void BuildResourceCounter(RectTransform root)
@@ -109,6 +139,195 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         resourceCount = MakeText(panel, "Resource Counter", "MADERA 0   PIEDRA 0   FIBRA 0   CHATARRA 0   COMIDA 0", 15, FontStyle.Bold, Color.white);
         resourceCount.alignment = TextAnchor.MiddleCenter;
         Anchor(resourceCount.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-20f, -8f));
+    }
+
+    private void BuildInventoryButton(RectTransform root)
+    {
+        GameObject buttonObject = new GameObject("Inventory Button", typeof(RectTransform), typeof(Image), typeof(Button));
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.SetParent(root, false);
+        Anchor(rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -48f), new Vector2(200f, 62f));
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = Violet;
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.AddListener(ToggleInventory);
+        Text label = MakeText(buttonObject.transform, "Inventory Button Label", "MOCHILA  ·  I", 18, FontStyle.Bold, Color.white);
+        Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        label.alignment = TextAnchor.MiddleCenter;
+    }
+
+    private void BuildInventoryOverlay(RectTransform root)
+    {
+        RectTransform overlay = NewRect(root, "Inventory Overlay");
+        overlay.anchorMin = Vector2.zero;
+        overlay.anchorMax = Vector2.one;
+        overlay.offsetMin = Vector2.zero;
+        overlay.offsetMax = Vector2.zero;
+        overlay.SetAsLastSibling();
+        inventoryOverlay = overlay.gameObject;
+        Image scrim = inventoryOverlay.AddComponent<Image>();
+        scrim.color = new Color(0.025f, 0.015f, 0.055f, 0.84f);
+
+        RectTransform card = NewRect(overlay, "Inventory Card");
+        Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 590f));
+        card.gameObject.AddComponent<Image>().color = Ink;
+        Text title = MakeText(card, "Inventory Title", "MOCHILA  ·  12 ESPACIOS", 30, FontStyle.Bold, Color.white);
+        Anchor(title.rectTransform, new Vector2(0.08f, 0.84f), new Vector2(0.78f, 0.97f), Vector2.zero, Vector2.zero);
+        title.alignment = TextAnchor.MiddleLeft;
+        Button close = CreateOverlayButton(card, "Close Inventory", "CERRAR", new Vector2(0f, 236f), new Vector2(150f, 56f), Violet);
+        close.onClick.AddListener(ClosePanels);
+
+        for (int i = 0; i < PrototypeResourceInventory.SlotCount; i++)
+        {
+            int column = i % 4;
+            int row = i / 4;
+            RectTransform slot = NewRect(card, "Inventory Slot " + (i + 1));
+            Anchor(slot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(-330f + column * 220f, 112f - row * 122f), new Vector2(204f, 100f));
+            slot.gameObject.AddComponent<Image>().color = new Color(0.16f, 0.12f, 0.23f, 1f);
+            inventorySlotLabels[i] = MakeText(slot, "Slot Contents", "VACÍO", 18, FontStyle.Bold, new Color(0.86f, 0.82f, 0.93f, 1f));
+            Anchor(inventorySlotLabels[i].rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-12f, -10f));
+            inventorySlotLabels[i].alignment = TextAnchor.MiddleCenter;
+        }
+        inventoryOverlay.SetActive(false);
+    }
+
+    private void BuildCraftingOverlay(RectTransform root)
+    {
+        RectTransform overlay = NewRect(root, "Crafting Overlay");
+        overlay.anchorMin = Vector2.zero;
+        overlay.anchorMax = Vector2.one;
+        overlay.offsetMin = Vector2.zero;
+        overlay.offsetMax = Vector2.zero;
+        overlay.SetAsLastSibling();
+        craftingOverlay = overlay.gameObject;
+        craftingOverlay.AddComponent<Image>().color = new Color(0.025f, 0.015f, 0.055f, 0.84f);
+
+        RectTransform card = NewRect(overlay, "Crafting Card");
+        Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(820f, 520f));
+        card.gameObject.AddComponent<Image>().color = Ink;
+        Text title = MakeText(card, "Crafting Title", "MESA DE TRABAJO", 30, FontStyle.Bold, Color.white);
+        Anchor(title.rectTransform, new Vector2(0.08f, 0.82f), new Vector2(0.72f, 0.96f), Vector2.zero, Vector2.zero);
+        title.alignment = TextAnchor.MiddleLeft;
+        Button close = CreateOverlayButton(card, "Close Crafting", "CERRAR", new Vector2(0f, 208f), new Vector2(150f, 56f), Violet);
+        close.onClick.AddListener(ClosePanels);
+
+        Button bat = CreateOverlayButton(card, "Craft Bat", "BATE\n6 madera + 2 fibra\nDaño 18  ·  alcance 1,4", new Vector2(-190f, 28f), new Vector2(330f, 220f), new Color(0.43f, 0.25f, 0.68f, 1f));
+        bat.onClick.AddListener(CraftBat);
+        Button axe = CreateOverlayButton(card, "Craft Axe", "HACHA\n4 madera + 3 piedra + 2 fibra\nDaño 28  ·  madera ×2", new Vector2(190f, 28f), new Vector2(330f, 220f), new Color(0.43f, 0.25f, 0.68f, 1f));
+        axe.onClick.AddListener(CraftAxe);
+
+        craftingMessage = MakeText(card, "Crafting Message", "FABRICA AQUÍ DURANTE LA PREPARACIÓN", 18, FontStyle.Bold, Mint);
+        Anchor(craftingMessage.rectTransform, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.26f), Vector2.zero, Vector2.zero);
+        craftingMessage.alignment = TextAnchor.MiddleCenter;
+        craftingOverlay.SetActive(false);
+    }
+
+    private void BuildToast(RectTransform root)
+    {
+        RectTransform panel = NewRect(root, "Interaction Toast");
+        Anchor(panel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 250f), new Vector2(720f, 66f));
+        panel.gameObject.AddComponent<Image>().color = Ink;
+        toastGroup = panel.gameObject.AddComponent<CanvasGroup>();
+        toastGroup.alpha = 0f;
+        toastLabel = MakeText(panel, "Interaction Toast Label", string.Empty, 18, FontStyle.Bold, Color.white);
+        Anchor(toastLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-20f, -8f));
+        toastLabel.alignment = TextAnchor.MiddleCenter;
+    }
+
+    private Button CreateOverlayButton(Transform parent, string name, string value, Vector2 position, Vector2 size, Color color)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        RectTransform rect = go.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        Anchor(rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), position, size);
+        Image image = go.GetComponent<Image>();
+        image.color = color;
+        Button button = go.GetComponent<Button>();
+        button.targetGraphic = image;
+        Text label = MakeText(go.transform, name + " Label", value, 20, FontStyle.Bold, Color.white);
+        Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-18f, -16f));
+        label.alignment = TextAnchor.MiddleCenter;
+        return button;
+    }
+
+    private void ToggleInventory()
+    {
+        if (inventoryOverlay == null) return;
+        if (!inventoryOverlay.activeSelf && hordeDirector != null && hordeDirector.HordeActive)
+        {
+            ShowToast("LA MOCHILA SE ABRE ENTRE HORDAS");
+            return;
+        }
+        bool open = !inventoryOverlay.activeSelf;
+        if (craftingOverlay != null) craftingOverlay.SetActive(false);
+        inventoryOverlay.SetActive(open);
+        Time.timeScale = open ? 0f : 1f;
+        if (open) RefreshInventory();
+    }
+
+    private void OpenCrafting()
+    {
+        if (craftingOverlay == null) return;
+        if (inventoryOverlay != null) inventoryOverlay.SetActive(false);
+        craftingOverlay.SetActive(true);
+        Time.timeScale = 0f;
+        ShowCraftingMessage("FABRICA AQUÍ DURANTE LA PREPARACIÓN");
+    }
+
+    private void ClosePanels()
+    {
+        if (inventoryOverlay != null) inventoryOverlay.SetActive(false);
+        if (craftingOverlay != null) craftingOverlay.SetActive(false);
+        Time.timeScale = 1f;
+    }
+
+    private void RefreshInventory()
+    {
+        if (inventory == null || inventorySlotLabels == null) return;
+        for (int i = 0; i < inventorySlotLabels.Length; i++)
+            if (inventorySlotLabels[i] != null) inventorySlotLabels[i].text = inventory.GetSlotLabel(i);
+    }
+
+    private void CraftBat()
+    {
+        if (hordeDirector != null && hordeDirector.HordeActive)
+        {
+            ShowCraftingMessage("ESPERA A QUE TERMINE LA HORDA");
+            return;
+        }
+        string message;
+        if (inventory == null) message = "INVENTARIO NO DISPONIBLE";
+        else if (inventory.TryCraftBat(out message)) meleeAttack.Equip(PrototypeWeapon.Bat);
+        ShowCraftingMessage(message);
+    }
+
+    private void CraftAxe()
+    {
+        if (hordeDirector != null && hordeDirector.HordeActive)
+        {
+            ShowCraftingMessage("ESPERA A QUE TERMINE LA HORDA");
+            return;
+        }
+        string message;
+        if (inventory == null) message = "INVENTARIO NO DISPONIBLE";
+        else if (inventory.TryCraftAxe(out message)) meleeAttack.Equip(PrototypeWeapon.Axe);
+        ShowCraftingMessage(message);
+    }
+
+    private void ShowCraftingMessage(string message)
+    {
+        if (craftingMessage != null) craftingMessage.text = message;
+        if (craftingOverlay == null || !craftingOverlay.activeSelf) ShowToast(message);
+    }
+
+    private void ShowToast(string message)
+    {
+        if (toastLabel == null || toastGroup == null) return;
+        toastLabel.text = message;
+        toastGroup.alpha = 1f;
+        toastVisibleUntil = Time.unscaledTime + 2.2f;
     }
 
     private void BuildHealthPanel(RectTransform root)

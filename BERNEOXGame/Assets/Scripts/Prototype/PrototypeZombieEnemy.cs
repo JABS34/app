@@ -48,7 +48,7 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
 
     private void Update()
     {
-        if (defeated || target == null || !target.IsAlive) return;
+        if (Time.timeScale <= 0f || defeated || target == null || !target.IsAlive) return;
 
         Vector3 towardPlayer = target.transform.position - transform.position;
         towardPlayer.y = 0f;
