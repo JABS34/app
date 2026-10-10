@@ -12,6 +12,7 @@ public static class ZombiePrototypeVisualUpgrade
     private const string ScenePath = "Assets/Scenes/ZombiePrototype.unity";
     private const string MarkerName = "APOCALYPTIC_SCENE_DRESSING";
     private const string VillageMarkerName = "APOCALYPTIC_VILLAGE_DETAILS_V2";
+    private const string DistrictMarkerName = "APOCALYPTIC_DISTRICT_AND_CHARACTER_V3";
     private static Mesh coneMesh;
     private static Mesh grassMesh;
     private static readonly Dictionary<Color, Material> Materials = new Dictionary<Color, Material>();
@@ -50,6 +51,12 @@ public static class ZombiePrototypeVisualUpgrade
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("Zombie Survival: poblado abandonado, vegetación y ambiente animado añadidos.");
         }
+        else if (!HasDistrictPass(scene))
+        {
+            AddDistrictAndCharacterPass(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: distrito ampliado, siluetas orgánicas y superviviente detallado aplicados.");
+        }
     }
 
     [MenuItem("BERNEOX/Actualizar escenario apocalíptico")]
@@ -61,12 +68,14 @@ public static class ZombiePrototypeVisualUpgrade
             EditorUtility.DisplayDialog("Zombie Survival", "Abre primero Assets/Scenes/ZombiePrototype.unity.", "Aceptar");
             return;
         }
-        if (HasUpgradeMarker(scene))
+        if (HasDistrictPass(scene))
         {
             EditorUtility.DisplayDialog("Zombie Survival", "La mejora visual ya está aplicada en esta escena.", "Aceptar");
             return;
         }
-        UpgradeScene(scene);
+        if (!HasUpgradeMarker(scene)) UpgradeScene(scene);
+        if (!HasVillagePass(scene)) AddVillageDetails(scene);
+        if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -486,7 +495,7 @@ public static class ZombiePrototypeVisualUpgrade
         Block(crate, "Crate lid brace", new Vector3(0f, 0.41f, 0f), new Vector3(0.9f, 0.1f, 0.1f), dark);
     }
 
-    [MenuItem("BERNEOX/Completar poblado apocalíptico y ambiente")]
+    [MenuItem("BERNEOX/Ampliar distrito y mejorar superviviente")]
     private static void AddVillageDetailsFromMenu()
     {
         Scene scene = SceneManager.GetActiveScene();
@@ -497,6 +506,7 @@ public static class ZombiePrototypeVisualUpgrade
         }
         if (!HasUpgradeMarker(scene)) UpgradeScene(scene);
         if (!HasVillagePass(scene)) AddVillageDetails(scene);
+        if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -505,6 +515,113 @@ public static class ZombiePrototypeVisualUpgrade
         foreach (GameObject root in scene.GetRootGameObjects())
             if (root.name == VillageMarkerName) return true;
         return false;
+    }
+
+    private static bool HasDistrictPass(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+            if (root.name == DistrictMarkerName) return true;
+        return false;
+    }
+
+    private static void AddDistrictAndCharacterPass(Scene scene)
+    {
+        GameObject dressing = new GameObject(DistrictMarkerName);
+        SceneManager.MoveGameObjectToScene(dressing, scene);
+        Transform root = dressing.transform;
+        Material concrete = SurfaceMaterial("CrackedConcrete", new Color(0.58f, 0.59f, 0.55f), SurfaceKind.Concrete);
+        Material plaster = SurfaceMaterial("FadedCementPlaster", new Color(0.49f, 0.50f, 0.46f), SurfaceKind.Plaster);
+        Material roof = SurfaceMaterial("CharredRoof", new Color(0.46f, 0.43f, 0.38f), SurfaceKind.Roof);
+        Material timber = SurfaceMaterial("AgedTimber", new Color(0.55f, 0.37f, 0.24f), SurfaceKind.Wood);
+        Material rust = SurfaceMaterial("FlakingRust", new Color(0.62f, 0.29f, 0.17f), SurfaceKind.Rust);
+        Material glass = Material(new Color(0.035f, 0.075f, 0.09f));
+
+        BuildRuralHouse(root, "Abandoned Clinic", new Vector3(-22f, 0f, 43f), plaster, roof, timber, rust, glass, rust, false);
+        BuildRuralHouse(root, "Collapsed Motor Workshop", new Vector3(23f, 0f, 48f), plaster, roof, timber, rust, glass, rust, true);
+        BuildWaterTower(root, concrete, rust, timber);
+        BuildRoadsideBarricade(root, concrete, timber, rust);
+        SoftenTreeSilhouettes();
+        RefineSurvivor();
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private static void BuildWaterTower(Transform parent, Material concrete, Material rust, Material timber)
+    {
+        Transform tower = ChildRoot(parent, "Rusted Water Tower");
+        tower.position = new Vector3(0f, 0f, 58f);
+        Part(PrimitiveType.Cylinder, "Elevated tank", tower, new Vector3(0f, 8.2f, 0f), new Vector3(3.1f, 2.2f, 3.1f), rust);
+        Part(PrimitiveType.Sphere, "Rounded tank crown", tower, new Vector3(0f, 9.2f, 0f), new Vector3(3.08f, 1.05f, 3.08f), rust);
+        Part(PrimitiveType.Cylinder, "Tank cap", tower, new Vector3(0f, 9.58f, 0f), new Vector3(1.25f, 0.18f, 1.25f), concrete);
+        for (int x = -1; x <= 1; x += 2)
+        for (int z = -1; z <= 1; z += 2)
+            Part(PrimitiveType.Capsule, "Tower support", tower, new Vector3(x * 1.25f, 4.15f, z * 1.25f), new Vector3(0.22f, 4.2f, 0.22f), timber);
+        Part(PrimitiveType.Cylinder, "Service catwalk", tower, new Vector3(0f, 6.95f, 0f), new Vector3(3.5f, 0.12f, 3.5f), rust);
+        Part(PrimitiveType.Capsule, "Bent drain pipe", tower, new Vector3(1.35f, 3.2f, 1.35f), new Vector3(0.12f, 3.5f, 0.12f), rust);
+        for (int step = 0; step < 8; step++)
+            Block(tower, "Ladder rung", new Vector3(-1.3f, 0.8f + step * 0.72f, 1.45f), new Vector3(0.66f, 0.055f, 0.07f), concrete, new Vector3(0f, 0f, -4f));
+    }
+
+    private static void BuildRoadsideBarricade(Transform parent, Material concrete, Material timber, Material rust)
+    {
+        Transform block = ChildRoot(parent, "Evacuation Roadblock");
+        block.position = new Vector3(0f, 0f, 21f);
+        for (int i = 0; i < 5; i++)
+        {
+            float x = -5f + i * 2.5f;
+            Part(PrimitiveType.Capsule, "Rounded concrete jersey barrier", block, new Vector3(x, 0.52f, 0f), new Vector3(0.92f, 0.57f, 0.72f), concrete);
+            if (i % 2 == 0) Block(block, "Faded hazard stripe", new Vector3(x, 0.58f, 0.37f), new Vector3(0.45f, 0.5f, 0.04f), rust, new Vector3(0f, 0f, -18f));
+        }
+        Block(block, "Collapsed timber gate", new Vector3(0f, 1.2f, -0.42f), new Vector3(10.5f, 0.16f, 0.18f), timber, new Vector3(0f, 0f, -12f));
+        Block(block, "Broken gate cross brace", new Vector3(1.2f, 1.05f, -0.39f), new Vector3(3.0f, 0.13f, 0.17f), timber, new Vector3(0f, 0f, 29f));
+    }
+
+    private static void SoftenTreeSilhouettes()
+    {
+        foreach (Transform candidate in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            Transform tree = candidate;
+            bool generatedPine = candidate.name == "PineTree_Apocalyptic";
+            bool resourcePineCanopy = candidate.name == "Tree Visuals" && candidate.Find("Pine Canopy Upgrade") != null;
+            if (resourcePineCanopy) tree = candidate.Find("Pine Canopy Upgrade");
+            else if (!generatedPine) continue;
+            bool hasSoftCrown = tree.Find("Soft Evergreen Canopy") != null;
+            if (hasSoftCrown) continue;
+            Transform soft = ChildRoot(tree, "Soft Evergreen Canopy");
+            Material needles = Material(new Color(0.12f, 0.22f, 0.19f));
+            float scale = resourcePineCanopy ? 0.76f : 1f;
+            Part(PrimitiveType.Sphere, "Rounded lower boughs", soft, new Vector3(0f, 1.75f * scale, 0f), new Vector3(3.0f, 1.45f, 2.75f) * scale, needles);
+            Part(PrimitiveType.Sphere, "Rounded middle boughs", soft, new Vector3(0f, 2.75f * scale, 0f), new Vector3(2.45f, 1.45f, 2.3f) * scale, needles);
+            Part(PrimitiveType.Sphere, "Rounded upper boughs", soft, new Vector3(0f, 3.65f * scale, 0f), new Vector3(1.85f, 1.4f, 1.8f) * scale, needles);
+            Part(PrimitiveType.Sphere, "Soft tree crown", soft, new Vector3(0f, 4.35f * scale, 0f), new Vector3(1.35f, 1.35f, 1.3f) * scale, needles);
+            for (int i = 0; i < tree.childCount; i++)
+            {
+                Transform child = tree.GetChild(i);
+                if (child == soft) continue;
+                if (child.name.Contains("Pine Bough") || child.name.Contains("Pine Crown") || child.name.Contains("Needle Tier") || child.name.Contains("Needle Crown")) child.gameObject.SetActive(false);
+            }
+        }
+    }
+
+    private static void RefineSurvivor()
+    {
+        GameObject player = GameObject.Find("Player_Prototype");
+        Transform rig = player != null ? player.transform.Find("Player_Visual_Rig") : null;
+        if (rig == null || rig.Find("Field Gear Details") != null) return;
+        Transform details = ChildRoot(rig, "Field Gear Details");
+        Material fabric = Material(new Color(0.20f, 0.22f, 0.20f));
+        Material leather = Material(new Color(0.15f, 0.12f, 0.09f));
+        Material canvas = SurfaceMaterial("SurvivorCanvas", new Color(0.43f, 0.38f, 0.27f), SurfaceKind.Wood);
+        Part(PrimitiveType.Sphere, "Rounded left shoulder pad", details, new Vector3(-0.30f, 0.28f, 0.03f), new Vector3(0.26f, 0.20f, 0.25f), fabric);
+        Part(PrimitiveType.Sphere, "Rounded right shoulder pad", details, new Vector3(0.30f, 0.28f, 0.03f), new Vector3(0.26f, 0.20f, 0.25f), fabric);
+        Transform strap = Part(PrimitiveType.Capsule, "Cross body field strap", details, new Vector3(0f, 0.04f, 0.22f), new Vector3(0.10f, 0.46f, 0.075f), leather);
+        strap.localRotation = Quaternion.Euler(0f, 0f, -24f);
+        Part(PrimitiveType.Sphere, "Canvas bedroll", details, new Vector3(0f, 0.42f, -0.31f), new Vector3(0.42f, 0.17f, 0.20f), canvas);
+        Part(PrimitiveType.Capsule, "Left knee pad", details, new Vector3(-0.16f, -0.52f, 0.15f), new Vector3(0.17f, 0.16f, 0.11f), fabric);
+        Part(PrimitiveType.Capsule, "Right knee pad", details, new Vector3(0.16f, -0.52f, 0.15f), new Vector3(0.17f, 0.16f, 0.11f), fabric);
+        Part(PrimitiveType.Capsule, "Left boot toe", details, new Vector3(-0.16f, -0.83f, 0.20f), new Vector3(0.24f, 0.12f, 0.17f), leather);
+        Part(PrimitiveType.Capsule, "Right boot toe", details, new Vector3(0.16f, -0.83f, 0.20f), new Vector3(0.24f, 0.12f, 0.17f), leather);
+        PrototypeCharacterAnimation animation = player.GetComponent<PrototypeCharacterAnimation>();
+        if (animation != null) animation.SetBodyMotionTarget(rig);
     }
 
     private static void AddVillageDetails(Scene scene)
