@@ -14,6 +14,9 @@ public static class ZombiePrototypeVisualUpgrade
     private const string VillageMarkerName = "APOCALYPTIC_VILLAGE_DETAILS_V2";
     private const string DistrictMarkerName = "APOCALYPTIC_DISTRICT_AND_CHARACTER_V3";
     private const string NaturalForestMarkerName = "NATURAL_FOREST_REFINEMENT_V4";
+    private const string FieldPolishMarkerName = "FIELD_LAYOUT_AND_WATER_V5";
+    private const float BuildZoneRadius = 7.5f;
+    private static readonly Vector3 BuildZoneCenter = new Vector3(0f, 0f, -27f);
     private static Mesh coneMesh;
     private static Mesh grassMesh;
     private static readonly Dictionary<Color, Material> Materials = new Dictionary<Color, Material>();
@@ -64,6 +67,12 @@ public static class ZombiePrototypeVisualUpgrade
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("Zombie Survival: copas forestales naturales y materiales mate aplicados.");
         }
+        else if (!HasFieldPolishPass(scene))
+        {
+            AddFieldPolishPass(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: campo ampliado, zona de construcción, lago animado y objetos apoyados en el suelo.");
+        }
     }
 
     [MenuItem("BERNEOX/Actualizar escenario apocalíptico")]
@@ -75,7 +84,7 @@ public static class ZombiePrototypeVisualUpgrade
             EditorUtility.DisplayDialog("Zombie Survival", "Abre primero Assets/Scenes/ZombiePrototype.unity.", "Aceptar");
             return;
         }
-        if (HasDistrictPass(scene))
+        if (HasFieldPolishPass(scene))
         {
             EditorUtility.DisplayDialog("Zombie Survival", "La mejora visual ya está aplicada en esta escena.", "Aceptar");
             return;
@@ -84,7 +93,21 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasVillagePass(scene)) AddVillageDetails(scene);
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
+        if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
+    }
+
+    public static void ApplyAllUpgradesForBatch()
+    {
+        Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+        if (!HasUpgradeMarker(scene)) UpgradeScene(scene);
+        if (!HasVillagePass(scene)) AddVillageDetails(scene);
+        if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
+        if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
+        if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
+        AssetDatabase.SaveAssets();
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        Debug.Log("Zombie Survival: mejoras de escenario aplicadas y guardadas desde la herramienta de edición.");
     }
 
     public static void UpgradeScene(Scene scene)
@@ -516,6 +539,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasVillagePass(scene)) AddVillageDetails(scene);
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
+        if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -538,6 +562,337 @@ public static class ZombiePrototypeVisualUpgrade
         foreach (GameObject root in scene.GetRootGameObjects())
             if (root.name == NaturalForestMarkerName) return true;
         return false;
+    }
+
+    private static bool HasFieldPolishPass(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+            if (root.name == FieldPolishMarkerName) return true;
+        return false;
+    }
+
+    private static void AddFieldPolishPass(Scene scene)
+    {
+        GameObject marker = new GameObject(FieldPolishMarkerName);
+        SceneManager.MoveGameObjectToScene(marker, scene);
+        Transform root = marker.transform;
+
+        GameObject ground = GameObject.Find("Ground_Prototype");
+        if (ground != null)
+        {
+            Vector3 scale = ground.transform.localScale;
+            ground.transform.localScale = new Vector3(Mathf.Max(scale.x, 14f), scale.y, Mathf.Max(scale.z, 14f));
+        }
+        ClearScenicFootprints();
+
+        Material wood = SurfaceMaterial("FieldAgedWood", new Color(0.37f, 0.25f, 0.16f), SurfaceKind.Wood);
+        Material darkWood = SurfaceMaterial("FieldCharredTimber", new Color(0.20f, 0.16f, 0.12f), SurfaceKind.Wood);
+        Material plaster = SurfaceMaterial("FieldWeatheredPlaster", new Color(0.57f, 0.51f, 0.40f), SurfaceKind.Plaster);
+        Material brick = SurfaceMaterial("FieldOldBrick", new Color(0.46f, 0.27f, 0.19f), SurfaceKind.Brick);
+        Material rust = SurfaceMaterial("FieldRust", new Color(0.52f, 0.27f, 0.17f), SurfaceKind.Rust);
+        Material stone = SurfaceMaterial("FieldTexturedStone", new Color(0.38f, 0.40f, 0.38f), SurfaceKind.Stone);
+        Material water = SurfaceMaterial("FieldPondWater", new Color(0.14f, 0.29f, 0.31f), SurfaceKind.Water);
+        if (water.HasProperty("_Smoothness")) water.SetFloat("_Smoothness", 0.42f);
+        if (water.HasProperty("_Metallic")) water.SetFloat("_Metallic", 0.12f);
+
+        BuildFieldBarn(root, new Vector3(-34f, 0f, 9f), wood, darkWood, rust);
+        BuildFieldCabin(root, new Vector3(33f, 0f, 3f), plaster, brick, wood, darkWood);
+        BuildFieldGreenhouse(root, new Vector3(-35f, 0f, -12f), darkWood, rust);
+        BuildBuildYard(root, wood, stone);
+        MeshFilter pond = BuildPond(root, new Vector3(36f, 0f, -26f), water, stone);
+        Transform[] treeWind = AddFieldTrees(root);
+        AddGroundedFieldDebris(root, wood, stone);
+        GroundExistingPickupsAndStones(stone);
+
+        PrototypeApocalypseMotion motion = marker.AddComponent<PrototypeApocalypseMotion>();
+        motion.Configure(treeWind, null, new Light[0]);
+        motion.ConfigureWater(pond != null ? new[] { pond } : new MeshFilter[0]);
+        MarkEnvironmentStatic(root);
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private static void ClearScenicFootprints()
+    {
+        Vector3[] centers =
+        {
+            new Vector3(-34f, 0f, 9f), new Vector3(33f, 0f, 3f), new Vector3(-35f, 0f, -12f),
+            BuildZoneCenter, new Vector3(36f, 0f, -26f)
+        };
+        float[] radii = { 9f, 8f, 8f, 10f, 8.5f };
+        List<GameObject> remove = new List<GameObject>();
+        foreach (Transform item in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (item == null) continue;
+            bool tree = item.name == "PineTree_Apocalyptic" || item.name == "DeadTree_Silhouette"
+                || item.name.Contains("Resource_Tree") || item.name.Contains("Tree_Prototype");
+            bool brushOrRubble = item.name == "Forest rubble" || item.name == "Dead Undergrowth";
+            if (!tree && !brushOrRubble)
+            {
+                PrototypeTreeNode node = item.GetComponent<PrototypeTreeNode>();
+                tree = node != null;
+            }
+            if (!tree && !brushOrRubble) continue;
+            for (int i = 0; i < centers.Length; i++)
+                if (NearZone(item.position, centers[i], radii[i]))
+                {
+                    remove.Add(item.gameObject);
+                    break;
+                }
+        }
+        foreach (GameObject target in remove) target.SetActive(false);
+    }
+
+    private static void BuildFieldBarn(Transform parent, Vector3 position, Material wood, Material dark, Material rust)
+    {
+        Transform barn = ChildRoot(parent, "Abandoned Field Barn");
+        barn.position = position;
+        Block(barn, "Stone footing", new Vector3(0f, 0.18f, 0f), new Vector3(10.5f, 0.36f, 8.5f), dark);
+        Block(barn, "Back timber wall", new Vector3(0f, 2.4f, -3.9f), new Vector3(9.8f, 4.5f, 0.25f), wood);
+        Block(barn, "Left timber wall", new Vector3(-4.8f, 2.4f, 0f), new Vector3(0.25f, 4.5f, 8f), wood);
+        Block(barn, "Right timber wall", new Vector3(4.8f, 2.4f, 0.2f), new Vector3(0.25f, 4.5f, 7.5f), wood);
+        Block(barn, "Barn front left", new Vector3(-3.25f, 2.4f, 3.9f), new Vector3(3.1f, 4.5f, 0.25f), wood);
+        Block(barn, "Barn front right", new Vector3(3.25f, 2.4f, 3.9f), new Vector3(3.1f, 4.5f, 0.25f), wood);
+        Block(barn, "Barn sliding door", new Vector3(0f, 1.65f, 4.08f), new Vector3(3.2f, 3.2f, 0.14f), dark);
+        Block(barn, "Door brace one", new Vector3(-0.9f, 1.7f, 4.18f), new Vector3(0.16f, 3.0f, 0.08f), rust);
+        Block(barn, "Door brace two", new Vector3(0.9f, 1.7f, 4.18f), new Vector3(0.16f, 3.0f, 0.08f), rust);
+        Block(barn, "Barn roof left", new Vector3(-2.4f, 5f, 0f), new Vector3(5.5f, 0.32f, 9f), dark, new Vector3(0f, 0f, -24f));
+        Block(barn, "Barn roof right", new Vector3(2.4f, 5f, 0f), new Vector3(5.5f, 0.32f, 9f), dark, new Vector3(0f, 0f, 24f));
+        Block(barn, "Bent roof ridge", new Vector3(0f, 6.05f, 0f), new Vector3(0.3f, 0.3f, 9.2f), rust, new Vector3(2f, 0f, 0f));
+        Block(barn, "Broken loft opening", new Vector3(-4.95f, 3.8f, 1.4f), new Vector3(0.1f, 1.2f, 2.2f), rust, new Vector3(0f, 0f, -10f));
+    }
+
+    private static void BuildFieldCabin(Transform parent, Vector3 position, Material plaster, Material brick, Material timber, Material dark)
+    {
+        Transform cabin = ChildRoot(parent, "Collapsed Ranger Cabin");
+        cabin.position = position;
+        Block(cabin, "Cabin foundation", new Vector3(0f, 0.18f, 0f), new Vector3(8f, 0.36f, 7f), brick);
+        Block(cabin, "Cabin rear wall", new Vector3(0f, 1.7f, -3.1f), new Vector3(7.2f, 3.1f, 0.2f), plaster);
+        Block(cabin, "Cabin left wall", new Vector3(-3.5f, 1.7f, 0f), new Vector3(0.2f, 3.1f, 6.1f), plaster);
+        Block(cabin, "Cabin right wall", new Vector3(3.5f, 1.5f, 0.6f), new Vector3(0.2f, 2.7f, 4.8f), plaster, new Vector3(0f, 0f, 4f));
+        Block(cabin, "Cabin front wall", new Vector3(-2.3f, 1.7f, 3.1f), new Vector3(2.4f, 3.1f, 0.2f), plaster);
+        Block(cabin, "Cabin porch beam", new Vector3(0f, 2.8f, 4.1f), new Vector3(6.3f, 0.18f, 0.18f), timber);
+        Block(cabin, "Cabin porch post left", new Vector3(-2.7f, 1.3f, 4.1f), new Vector3(0.18f, 2.6f, 0.18f), timber);
+        Block(cabin, "Cabin porch post right", new Vector3(2.7f, 1.3f, 4.1f), new Vector3(0.18f, 2.6f, 0.18f), timber);
+        Block(cabin, "Cabin roof surviving side", new Vector3(-1.6f, 3.5f, 0f), new Vector3(4.3f, 0.25f, 7.5f), dark, new Vector3(0f, 0f, -19f));
+        Block(cabin, "Cabin roof fallen panel", new Vector3(2.3f, 2.9f, 0.3f), new Vector3(2.4f, 0.18f, 3.5f), dark, new Vector3(11f, 0f, 26f));
+        Block(cabin, "Boarded front window", new Vector3(1.7f, 1.8f, 3.22f), new Vector3(1.2f, 1.1f, 0.08f), timber, new Vector3(0f, 0f, 4f));
+    }
+
+    private static void BuildFieldGreenhouse(Transform parent, Vector3 position, Material frame, Material rust)
+    {
+        Transform greenhouse = ChildRoot(parent, "Shattered Farm Greenhouse");
+        greenhouse.position = position;
+        Material glass = Material(new Color(0.16f, 0.28f, 0.27f));
+        for (int x = -1; x <= 1; x += 2)
+        for (int z = -1; z <= 1; z += 2)
+            Block(greenhouse, "Greenhouse frame post", new Vector3(x * 3.6f, 1.55f, z * 3f), new Vector3(0.14f, 3.1f, 0.14f), frame);
+        for (int x = -1; x <= 1; x += 2)
+        for (int z = -1; z <= 1; z += 2)
+        {
+            Transform pane = Part(PrimitiveType.Cube, "Dirty greenhouse glass", greenhouse, new Vector3(x * 1.8f, 1.45f, z * 3f), new Vector3(3.4f, 2.3f, 0.045f), glass);
+            pane.localRotation = Quaternion.Euler(0f, 0f, x * -3f);
+        }
+        Block(greenhouse, "Greenhouse ridge beam", new Vector3(0f, 3.2f, 0f), new Vector3(0.16f, 0.16f, 6.5f), rust);
+        for (int side = -1; side <= 1; side += 2)
+            Block(greenhouse, "Greenhouse roof frame", new Vector3(side * 1.8f, 2.85f, 0f), new Vector3(4.2f, 0.13f, 6.4f), frame, new Vector3(0f, 0f, side * 27f));
+        Block(greenhouse, "Broken glass pane on ground", new Vector3(1.4f, 0.04f, 4f), new Vector3(2.6f, 0.05f, 1.7f), glass, new Vector3(0f, 22f, 0f));
+        Block(greenhouse, "Rusty side brace", new Vector3(-3.6f, 0.9f, -1.4f), new Vector3(0.1f, 1.8f, 0.1f), rust, new Vector3(0f, 0f, -15f));
+    }
+
+    private static void BuildBuildYard(Transform parent, Material wood, Material stone)
+    {
+        Transform yard = ChildRoot(parent, "Marked Survivor Build Yard");
+        yard.position = BuildZoneCenter;
+        Part(PrimitiveType.Cylinder, "Build yard compacted soil", yard, new Vector3(0f, 0.015f, 0f), new Vector3(18f, 0.03f, 16f),
+            SurfaceMaterial("CompactedBuildSoil", new Color(0.34f, 0.28f, 0.21f), SurfaceKind.Mud));
+        for (int i = 0; i < 18; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 18f;
+            Vector3 point = new Vector3(Mathf.Cos(angle) * 8.2f, 0.25f, Mathf.Sin(angle) * 7.2f);
+            Transform markerStone = Part(PrimitiveType.Sphere, "Build yard border stone", yard, point,
+                new Vector3(0.48f, 0.34f, 0.44f), stone);
+            markerStone.rotation = Quaternion.Euler(0f, i * 19f, Random.Range(-9f, 9f));
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            float angle = i * Mathf.PI * 0.5f + 0.25f;
+            Vector3 p = new Vector3(Mathf.Cos(angle) * 8.4f, 0.8f, Mathf.Sin(angle) * 7.4f);
+            Transform stake = Part(PrimitiveType.Cylinder, "Build yard boundary stake", yard, p,
+                new Vector3(0.09f, 0.8f, 0.09f), wood);
+            stake.localRotation = Quaternion.Euler(0f, angle * Mathf.Rad2Deg, 7f);
+        }
+        Block(yard, "Build yard sign board", new Vector3(0f, 1.25f, 8.8f), new Vector3(2.8f, 0.75f, 0.12f), wood);
+        Block(yard, "Build yard sign post left", new Vector3(-1.1f, 0.55f, 8.8f), new Vector3(0.12f, 1.1f, 0.12f), wood);
+        Block(yard, "Build yard sign post right", new Vector3(1.1f, 0.55f, 8.8f), new Vector3(0.12f, 1.1f, 0.12f), wood);
+    }
+
+    private static MeshFilter BuildPond(Transform parent, Vector3 position, Material water, Material stone)
+    {
+        Transform pond = ChildRoot(parent, "Forest Pond");
+        pond.position = position;
+        int rings = 8;
+        int sides = 48;
+        Vector3[] vertices = new Vector3[1 + rings * sides];
+        int[] triangles = new int[(sides + (rings - 1) * sides * 2) * 3];
+        vertices[0] = Vector3.zero;
+        for (int ring = 1; ring <= rings; ring++)
+        {
+            float t = ring / (float)rings;
+            for (int side = 0; side < sides; side++)
+            {
+                float angle = side * Mathf.PI * 2f / sides;
+                float edge = 1f + 0.045f * Mathf.Sin(angle * 3f + 0.6f) + 0.028f * Mathf.Sin(angle * 7f - 0.2f);
+                vertices[1 + (ring - 1) * sides + side] = new Vector3(Mathf.Cos(angle) * 7.6f * t * edge, 0f,
+                    Mathf.Sin(angle) * 5.1f * t * edge);
+            }
+        }
+        int ti = 0;
+        for (int side = 0; side < sides; side++)
+        {
+            int next = (side + 1) % sides;
+            triangles[ti++] = 0; triangles[ti++] = 1 + next; triangles[ti++] = 1 + side;
+            for (int ring = 0; ring < rings - 1; ring++)
+            {
+                int a = 1 + ring * sides + side;
+                int b = 1 + ring * sides + next;
+                int c = a + sides;
+                int d = b + sides;
+                triangles[ti++] = a; triangles[ti++] = b; triangles[ti++] = c;
+                triangles[ti++] = b; triangles[ti++] = d; triangles[ti++] = c;
+            }
+        }
+        Mesh mesh = new Mesh { name = "Irregular pond surface" };
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        Vector2[] uv = new Vector2[vertices.Length];
+        uv[0] = new Vector2(0.5f, 0.5f);
+        for (int ring = 1; ring <= rings; ring++)
+        for (int side = 0; side < sides; side++)
+            uv[1 + (ring - 1) * sides + side] = new Vector2(0.5f + Mathf.Cos(side * Mathf.PI * 2f / sides) * ring / (float)rings,
+                0.5f + Mathf.Sin(side * Mathf.PI * 2f / sides) * ring / (float)rings);
+        mesh.uv = uv;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        mesh.MarkDynamic();
+        mesh.bounds = new Bounds(Vector3.zero, new Vector3(15.6f, 0.12f, 10.6f));
+        GameObject waterObject = new GameObject("Animated Pond Water", typeof(MeshFilter), typeof(MeshRenderer));
+        waterObject.transform.SetParent(pond, false);
+        waterObject.transform.localPosition = new Vector3(0f, 0.11f, 0f);
+        MeshFilter filter = waterObject.GetComponent<MeshFilter>();
+        filter.sharedMesh = mesh;
+        waterObject.GetComponent<MeshRenderer>().sharedMaterial = water;
+        for (int i = 0; i < 28; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 28f;
+            float wobble = 1f + 0.04f * Mathf.Sin(angle * 5f);
+            Vector3 p = new Vector3(Mathf.Cos(angle) * 7.7f * wobble, 0.17f, Mathf.Sin(angle) * 5.2f * wobble);
+            Transform bank = Part(PrimitiveType.Sphere, "Mossy pond bank rock", pond, p,
+                new Vector3(Random.Range(0.35f, 0.85f), Random.Range(0.2f, 0.5f), Random.Range(0.35f, 0.8f)), stone);
+            bank.rotation = Quaternion.Euler(0f, angle * Mathf.Rad2Deg, Random.Range(-12f, 12f));
+        }
+        return filter;
+    }
+
+    private static Transform[] AddFieldTrees(Transform parent)
+    {
+        Material[] bark =
+        {
+            SurfaceMaterial("FieldBarkDark", new Color(0.22f, 0.15f, 0.11f), SurfaceKind.Wood),
+            SurfaceMaterial("FieldBarkGrey", new Color(0.31f, 0.29f, 0.24f), SurfaceKind.Wood)
+        };
+        Material[] leaves =
+        {
+            SurfaceMaterial("FieldCanopyDeep", new Color(0.12f, 0.25f, 0.18f), SurfaceKind.Foliage),
+            SurfaceMaterial("FieldCanopyMoss", new Color(0.20f, 0.31f, 0.18f), SurfaceKind.Foliage),
+            SurfaceMaterial("FieldCanopyCold", new Color(0.12f, 0.24f, 0.24f), SurfaceKind.Foliage)
+        };
+        Random.State old = Random.state;
+        Random.InitState(6102026);
+        List<Transform> wind = new List<Transform>();
+        foreach (Transform existingCanopy in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (existingCanopy.name != "Soft Evergreen Canopy") continue;
+            float size = Random.Range(0.82f, 1.20f);
+            existingCanopy.localScale = Vector3.Scale(existingCanopy.localScale, new Vector3(size, Random.Range(0.88f, 1.26f), size));
+            wind.Add(existingCanopy);
+        }
+        for (int i = 0; i < 44; i++)
+        {
+            float angle = Random.Range(0f, Mathf.PI * 2f);
+            float radius = Random.Range(43f, 66f);
+            Vector3 point = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            if (NearZone(point, BuildZoneCenter, 14f) || NearZone(point, new Vector3(36f, 0f, -26f), 13f)
+                || NearZone(point, new Vector3(-34f, 0f, 9f), 11f)
+                || NearZone(point, new Vector3(33f, 0f, 3f), 10f)
+                || NearZone(point, new Vector3(-35f, 0f, -12f), 10f)) continue;
+            float height = Random.Range(0.72f, 1.62f);
+            Transform tree = ChildRoot(parent, "Field Evergreen Variation");
+            tree.position = point;
+            float width = Random.Range(0.78f, 1.38f);
+            tree.localScale = new Vector3(width, height, width * Random.Range(0.82f, 1.15f));
+            Transform trunk = Part(PrimitiveType.Cylinder, "Field Tree Trunk", tree, new Vector3(0f, 2.1f, 0f),
+                new Vector3(Random.Range(0.25f, 0.4f), 2.1f, Random.Range(0.25f, 0.4f)), bark[Random.Range(0, bark.Length)]);
+            trunk.localRotation = Quaternion.Euler(Random.Range(-2f, 2f), 0f, Random.Range(-4f, 4f));
+            Transform canopy = ChildRoot(tree, "Soft Evergreen Canopy");
+            GameObject meshObject = new GameObject("Natural Canopy Form", typeof(MeshFilter), typeof(MeshRenderer));
+            meshObject.transform.SetParent(canopy, false);
+            meshObject.GetComponent<MeshFilter>().sharedMesh = BuildOrganicCanopyMesh(9100 + i * 73);
+            meshObject.GetComponent<MeshRenderer>().sharedMaterial = leaves[Random.Range(0, leaves.Length)];
+            wind.Add(canopy);
+        }
+        Random.state = old;
+        return wind.ToArray();
+    }
+
+    private static void AddGroundedFieldDebris(Transform parent, Material wood, Material stone)
+    {
+        Random.State old = Random.state;
+        Random.InitState(24102026);
+        for (int i = 0; i < 72; i++)
+        {
+            Vector2 d = Random.insideUnitCircle;
+            Vector3 point = new Vector3(d.x * 62f, 0f, d.y * 62f);
+            if (NearZone(point, BuildZoneCenter, 12f) || NearZone(point, new Vector3(36f, 0f, -26f), 12f)) continue;
+            if (i % 3 == 0)
+            {
+                float length = Random.Range(0.7f, 2.0f);
+                Vector3 direction = new Vector3(Mathf.Cos(Random.value * Mathf.PI * 2f), 0f, Mathf.Sin(Random.value * Mathf.PI * 2f));
+                Vector3 start = new Vector3(point.x, 0.10f, point.z) - direction * length * 0.5f;
+                Vector3 end = new Vector3(point.x, 0.10f, point.z) + direction * length * 0.5f;
+                Branch(parent, start, end, Random.Range(0.07f, 0.13f), wood);
+                if (i % 2 == 0)
+                    Branch(parent, Vector3.Lerp(start, end, 0.62f), Vector3.Lerp(start, end, 0.62f) + Vector3.Cross(direction, Vector3.up) * Random.Range(0.28f, 0.6f), 0.045f, wood);
+            }
+            else
+            {
+                Transform rock = Part(PrimitiveType.Sphere, "Textured Field Stone", parent,
+                    new Vector3(point.x, Random.Range(0.17f, 0.28f), point.z),
+                    new Vector3(Random.Range(0.35f, 0.9f), Random.Range(0.25f, 0.58f), Random.Range(0.32f, 0.82f)), stone);
+                rock.rotation = Quaternion.Euler(Random.Range(-8f, 8f), Random.Range(0f, 360f), Random.Range(-8f, 8f));
+            }
+        }
+        Random.state = old;
+    }
+
+    private static void GroundExistingPickupsAndStones(Material stone)
+    {
+        foreach (PrototypeResourcePickup pickup in Object.FindObjectsByType<PrototypeResourcePickup>(FindObjectsInactive.Include))
+            if (pickup != null) pickup.transform.position = new Vector3(pickup.transform.position.x, 0.30f, pickup.transform.position.z);
+        foreach (Transform item in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include))
+        {
+            if (item == null) continue;
+            if (item.name == "Forest rubble" || item.name.Contains("roadside brick and debris") || item.name == "Textured Field Stone")
+            {
+                Renderer renderer = item.GetComponent<Renderer>();
+                if (renderer != null) item.position += Vector3.up * Mathf.Max(0f, 0.035f - renderer.bounds.min.y);
+                if (renderer != null) renderer.sharedMaterial = stone;
+            }
+            if (item.name.Contains("Stone Chunk") || item.name.Contains("Stone Chip"))
+            {
+                Renderer renderer = item.GetComponent<Renderer>();
+                if (renderer != null) renderer.sharedMaterial = stone;
+            }
+        }
     }
 
     private static void RefineNaturalForest(Scene scene)
@@ -780,7 +1135,7 @@ public static class ZombiePrototypeVisualUpgrade
         EditorSceneManager.MarkSceneDirty(scene);
     }
 
-    private enum SurfaceKind { Plaster, Roof, Brick, Wood, Rust, Concrete, Asphalt, Mud, Foliage }
+    private enum SurfaceKind { Plaster, Roof, Brick, Wood, Rust, Concrete, Asphalt, Mud, Foliage, Stone, Water }
 
     private static Material SurfaceMaterial(string name, Color tint, SurfaceKind kind)
     {
@@ -824,7 +1179,8 @@ public static class ZombiePrototypeVisualUpgrade
         if (shader == null) return Material(tint);
         material = new Material(shader) { name = "M_" + name, color = Color.white };
         if (texture != null) material.mainTexture = texture;
-        float tiling = kind == SurfaceKind.Asphalt || kind == SurfaceKind.Mud ? 3.2f : kind == SurfaceKind.Wood ? 1.5f : 2.1f;
+        float tiling = kind == SurfaceKind.Asphalt || kind == SurfaceKind.Mud || kind == SurfaceKind.Stone || kind == SurfaceKind.Water
+            ? 3.2f : kind == SurfaceKind.Wood ? 1.5f : 2.1f;
         material.mainTextureScale = new Vector2(tiling, tiling);
         SetMatte(material);
         AssetDatabase.CreateAsset(material, materialPath);
@@ -878,6 +1234,19 @@ public static class ZombiePrototypeVisualUpgrade
                 shade = 0.58f + broad * 0.43f + fine * 0.15f;
             else if (kind == SurfaceKind.Foliage)
                 shade = 0.48f + broad * 0.58f + fine * 0.16f + (fine > 0.73f ? 0.16f : 0f);
+            else if (kind == SurfaceKind.Stone)
+            {
+                float fleck = Mathf.PerlinNoise(u * 92f + seed * 2.3f, v * 92f + seed * 0.9f);
+                float strata = Mathf.PerlinNoise(u * 16f + seed * 0.2f, v * 9f + seed);
+                shade = 0.42f + broad * 0.42f + fleck * 0.24f + strata * 0.20f;
+                if (fleck > 0.84f) shade += 0.16f;
+                if (fleck < 0.17f) shade -= 0.14f;
+            }
+            else if (kind == SurfaceKind.Water)
+            {
+                float ripple = Mathf.Sin((u * 5.4f + v * 3.2f + broad * 0.16f) * Mathf.PI * 2f);
+                shade = 0.67f + broad * 0.22f + fine * 0.08f + ripple * 0.035f;
+            }
 
             pixels[y * size + x] = new Color(tint.r * shade, tint.g * shade, tint.b * shade, 1f);
         }

@@ -6,6 +6,8 @@ using UnityEngine.Rendering;
 /// <summary>Lets the player place snap-aligned wooden shelter pieces during preparation.</summary>
 public sealed class PrototypeShelterBuilder : MonoBehaviour
 {
+    private static readonly Vector3 BuildZoneCenter = new Vector3(0f, 0f, -27f);
+    private const float BuildZoneRadius = 7.5f;
     [SerializeField] private Transform player;
     [SerializeField] private PrototypeResourceInventory inventory;
     [SerializeField] private PrototypeHordeDirector hordeDirector;
@@ -21,11 +23,12 @@ public sealed class PrototypeShelterBuilder : MonoBehaviour
     private Material previewMaterial;
 
     public bool IsPlacing => isPlacing;
-    public bool CanPlace => isPlacing && hasGroundTarget && !HasPlacementBlocker() && inventory != null
+    public bool CanPlace => isPlacing && hasGroundTarget && IsInsideBuildZone(placementPosition) && !HasPlacementBlocker() && inventory != null
         && inventory.GetAmount(PrototypeResourceType.Wood) >= WoodCost(selectedPiece);
     public string PieceLabel => selectedPiece == PrototypeShelterPieceType.Wall ? "PARED" : "BARRICADA";
     public string PlacementStatus => !isPlacing ? string.Empty
-        : !hasGroundTarget ? "TOCA EL SUELO PARA ELEGIR DÓNDE CONSTRUIR"
+        : !hasGroundTarget ? "ZONA DE CONSTRUCCIÓN · TOCA EL SUELO PARA ELEGIR"
+        : !IsInsideBuildZone(placementPosition) ? "FUERA DE LA ZONA · CONSTRUYE EN EL CLARO MARCADO"
         : HasPlacementBlocker() ? "UBICACIÓN OCUPADA · TOCA OTRO LUGAR"
         : inventory == null || inventory.GetAmount(PrototypeResourceType.Wood) < WoodCost(selectedPiece)
             ? "FALTA MADERA · " + inventory?.GetAmount(PrototypeResourceType.Wood) + "/" + WoodCost(selectedPiece)
@@ -47,8 +50,8 @@ public sealed class PrototypeShelterBuilder : MonoBehaviour
             return;
         }
 
-        if (!hasGroundTarget && player != null)
-            placementPosition = Snap(player.position + player.forward * 4f);
+        if (!hasGroundTarget)
+            placementPosition = Snap(BuildZoneCenter);
         HandleWorldTap();
         UpdatePreview();
     }
@@ -118,8 +121,8 @@ public sealed class PrototypeShelterBuilder : MonoBehaviour
         Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
         if (!groundPlane.Raycast(ray, out float distance)) return;
         Vector3 point = ray.GetPoint(distance);
-        point.x = Mathf.Clamp(point.x, -38f, 38f);
-        point.z = Mathf.Clamp(point.z, -38f, 38f);
+        point.x = Mathf.Clamp(point.x, -68f, 68f);
+        point.z = Mathf.Clamp(point.z, -68f, 68f);
         placementPosition = Snap(point);
         hasGroundTarget = true;
     }
@@ -132,10 +135,17 @@ public sealed class PrototypeShelterBuilder : MonoBehaviour
 
     private bool HasPlacementBlocker()
     {
+        if (!IsInsideBuildZone(placementPosition)) return true;
         Vector3 size = PieceSize(selectedPiece);
         Vector3 center = placementPosition + Vector3.up * (size.y * 0.5f + 0.03f);
         return Physics.CheckBox(center, size * 0.48f, Quaternion.Euler(0f, rotationSteps * 90f, 0f),
             ~0, QueryTriggerInteraction.Ignore);
+    }
+
+    private static bool IsInsideBuildZone(Vector3 point)
+    {
+        Vector2 offset = new Vector2(point.x - BuildZoneCenter.x, point.z - BuildZoneCenter.z);
+        return offset.sqrMagnitude <= BuildZoneRadius * BuildZoneRadius;
     }
 
     private void EnsurePreview()

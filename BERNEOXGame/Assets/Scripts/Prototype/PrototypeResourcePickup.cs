@@ -7,7 +7,6 @@ public sealed class PrototypeResourcePickup : MonoBehaviour
     private static readonly Dictionary<Color, Material> ResourceMaterials = new Dictionary<Color, Material>();
     [SerializeField] private PrototypeResourceType resourceType;
     [SerializeField, Min(1)] private int amount = 1;
-    private Vector3 basePosition;
 
     public PrototypeResourceType ResourceType => resourceType;
     public int Amount => amount;
@@ -16,7 +15,7 @@ public sealed class PrototypeResourcePickup : MonoBehaviour
     {
         GameObject pickup = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         pickup.name = "Recurso_" + type;
-        pickup.transform.position = position + Vector3.up * 0.45f;
+        pickup.transform.position = new Vector3(position.x, 0.30f, position.z);
         pickup.transform.localScale = Vector3.one;
         Collider collider = pickup.GetComponent<Collider>();
         collider.isTrigger = true;
@@ -125,11 +124,10 @@ public sealed class PrototypeResourcePickup : MonoBehaviour
         }
     }
 
-    private void Awake() => basePosition = transform.position;
-
-    private void Update()
+    private void Awake()
     {
-        transform.position = basePosition + Vector3.up * (0.12f + Mathf.Sin(Time.time * 2.5f) * 0.1f);
-        transform.Rotate(Vector3.up, 70f * Time.deltaTime, Space.World);
+        // The prototype uses a level ground plane at y=0. Keep pickups resting on it;
+        // they should not hover or drift while the player is trying to collect them.
+        transform.position = new Vector3(transform.position.x, 0.30f, transform.position.z);
     }
 }

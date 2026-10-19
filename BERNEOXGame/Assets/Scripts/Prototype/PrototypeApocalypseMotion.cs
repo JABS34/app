@@ -10,6 +10,9 @@ public sealed class PrototypeApocalypseMotion : MonoBehaviour
     private Quaternion[] restRotations;
     private float campfireBaseIntensity;
     private float[] unstableBaseIntensity;
+    [SerializeField] private MeshFilter[] waterSurfaces;
+    private Vector3[][] waterRestVertices;
+    private Vector3[][] waterAnimatedVertices;
 
     public Transform[] AnimatedTransforms => windTargets;
 
@@ -21,7 +24,39 @@ public sealed class PrototypeApocalypseMotion : MonoBehaviour
         CacheRestPose();
     }
 
-    private void Awake() => CacheRestPose();
+    public void ConfigureWater(MeshFilter[] surfaces)
+    {
+        waterSurfaces = surfaces;
+        CacheWaterRestPose();
+    }
+
+    private void Awake()
+    {
+        CacheRestPose();
+        if (waterSurfaces == null || waterSurfaces.Length == 0)
+        {
+            MeshFilter[] candidates = GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                if (candidates[i] == null || candidates[i].name != "Animated Pond Water") continue;
+                waterSurfaces = new[] { candidates[i] };
+                break;
+            }
+        }
+        CacheWaterRestPose();
+    }
+
+    private void CacheWaterRestPose()
+    {
+        waterRestVertices = new Vector3[waterSurfaces != null ? waterSurfaces.Length : 0][];
+        waterAnimatedVertices = new Vector3[waterRestVertices.Length][];
+        for (int i = 0; i < waterRestVertices.Length; i++)
+            if (waterSurfaces[i] != null && waterSurfaces[i].sharedMesh != null)
+            {
+                waterRestVertices[i] = waterSurfaces[i].sharedMesh.vertices;
+                waterAnimatedVertices[i] = new Vector3[waterRestVertices[i].Length];
+            }
+    }
 
     private void CacheRestPose()
     {
@@ -43,6 +78,31 @@ public sealed class PrototypeApocalypseMotion : MonoBehaviour
     private void Update()
     {
         float time = Time.unscaledTime;
+        if (waterSurfaces != null && waterRestVertices != null)
+        {
+            for (int i = 0; i < waterSurfaces.Length; i++)
+            {
+                MeshFilter filter = waterSurfaces[i];
+                if (filter == null || filter.sharedMesh == null || waterRestVertices[i] == null) continue;
+                Vector3[] vertices = waterRestVertices[i];
+                Vector3[] animated = waterAnimatedVertices[i];
+                if (animated == null || animated.Length != vertices.Length)
+                {
+                    animated = new Vector3[vertices.Length];
+                    waterAnimatedVertices[i] = animated;
+                }
+                for (int v = 0; v < vertices.Length; v++)
+                {
+                    Vector3 point = vertices[v];
+                    float waveA = Mathf.Sin(point.x * 0.70f + time * 1.45f);
+                    float waveB = Mathf.Sin(point.z * 0.82f - time * 1.12f + point.x * 0.35f);
+                    point.y += (waveA + waveB) * 0.018f;
+                    animated[v] = point;
+                }
+                filter.sharedMesh.vertices = animated;
+                filter.sharedMesh.RecalculateNormals();
+            }
+        }
         if (windTargets != null && restRotations != null)
         {
             for (int i = 0; i < windTargets.Length; i++)
