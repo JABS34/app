@@ -15,6 +15,7 @@ public static class ZombiePrototypeVisualUpgrade
     private const string DistrictMarkerName = "APOCALYPTIC_DISTRICT_AND_CHARACTER_V3";
     private const string NaturalForestMarkerName = "NATURAL_FOREST_REFINEMENT_V4";
     private const string FieldPolishMarkerName = "FIELD_LAYOUT_AND_WATER_V5";
+    private const string FieldLifeMarkerName = "FIELD_PHYSICS_AND_VARIETY_V6";
     private const float BuildZoneRadius = 7.5f;
     private static readonly Vector3 BuildZoneCenter = new Vector3(0f, 0f, -27f);
     private static Mesh coneMesh;
@@ -73,6 +74,12 @@ public static class ZombiePrototypeVisualUpgrade
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("Zombie Survival: campo ampliado, zona de construcción, lago animado y objetos apoyados en el suelo.");
         }
+        else if (!HasFieldLifePass(scene))
+        {
+            AddFieldLifePass(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: relieve de terreno, estructuras rurales y especies de árboles añadidos.");
+        }
     }
 
     [MenuItem("BERNEOX/Actualizar escenario apocalíptico")]
@@ -84,7 +91,7 @@ public static class ZombiePrototypeVisualUpgrade
             EditorUtility.DisplayDialog("Zombie Survival", "Abre primero Assets/Scenes/ZombiePrototype.unity.", "Aceptar");
             return;
         }
-        if (HasFieldPolishPass(scene))
+        if (HasFieldLifePass(scene))
         {
             EditorUtility.DisplayDialog("Zombie Survival", "La mejora visual ya está aplicada en esta escena.", "Aceptar");
             return;
@@ -94,6 +101,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
         if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
+        if (!HasFieldLifePass(scene)) AddFieldLifePass(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -105,6 +113,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
         if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
+        if (!HasFieldLifePass(scene)) AddFieldLifePass(scene);
         AssetDatabase.SaveAssets();
         EditorSceneManager.SaveScene(scene, ScenePath);
         Debug.Log("Zombie Survival: mejoras de escenario aplicadas y guardadas desde la herramienta de edición.");
@@ -569,6 +578,138 @@ public static class ZombiePrototypeVisualUpgrade
         foreach (GameObject root in scene.GetRootGameObjects())
             if (root.name == FieldPolishMarkerName) return true;
         return false;
+    }
+
+    private static bool HasFieldLifePass(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+            if (root.name == FieldLifeMarkerName) return true;
+        return false;
+    }
+
+    private static void AddFieldLifePass(Scene scene)
+    {
+        GameObject marker = new GameObject(FieldLifeMarkerName);
+        SceneManager.MoveGameObjectToScene(marker, scene);
+        Material mud = SurfaceMaterial("CompactedBuildSoil", new Color(0.34f, 0.28f, 0.21f), SurfaceKind.Mud);
+        GameObject ground = GameObject.Find("Ground_Prototype");
+        if (ground != null)
+        {
+            Renderer renderer = ground.GetComponent<Renderer>();
+            if (renderer != null) renderer.sharedMaterial = mud;
+            if (ground.GetComponent<MeshCollider>() == null)
+            {
+                MeshFilter filter = ground.GetComponent<MeshFilter>();
+                if (filter != null)
+                {
+                    MeshCollider collider = ground.AddComponent<MeshCollider>();
+                    collider.sharedMesh = filter.sharedMesh;
+                }
+            }
+        }
+        Transform root = marker.transform;
+        Material stone = SurfaceMaterial("FieldTexturedStone", new Color(0.38f, 0.40f, 0.38f), SurfaceKind.Stone);
+        Material timber = SurfaceMaterial("FieldAgedWood", new Color(0.37f, 0.25f, 0.16f), SurfaceKind.Wood);
+        Material dark = SurfaceMaterial("FieldCharredTimber", new Color(0.20f, 0.16f, 0.12f), SurfaceKind.Wood);
+        Material bark = SurfaceMaterial("FieldBarkGrey", new Color(0.31f, 0.29f, 0.24f), SurfaceKind.Wood);
+        Material leaf = SurfaceMaterial("FieldCanopyMoss", new Color(0.20f, 0.31f, 0.18f), SurfaceKind.Foliage);
+        Material fruit = SurfaceMaterial("OrchardFruit", new Color(0.66f, 0.25f, 0.12f), SurfaceKind.Foliage);
+        BuildFieldWell(root, new Vector3(23f, 0f, -30f), stone, timber, dark);
+        BuildFieldWaterTower(root, new Vector3(-21f, 0f, -34f), timber, dark, rustMaterial());
+        AddOrchardTrees(root, bark, leaf, fruit);
+        MarkEnvironmentStatic(root);
+        EditorSceneManager.MarkSceneDirty(scene);
+    }
+
+    private static Material rustMaterial() => SurfaceMaterial("FieldRust", new Color(0.52f, 0.27f, 0.17f), SurfaceKind.Rust);
+
+    private static void BuildFieldWell(Transform parent, Vector3 position, Material stone, Material timber, Material dark)
+    {
+        Transform well = ChildRoot(parent, "Old Stone Well");
+        well.position = position;
+        Transform baseRing = Part(PrimitiveType.Cylinder, "Stone well basin", well, new Vector3(0f, 0.48f, 0f), new Vector3(2.3f, 0.48f, 2.3f), stone);
+        baseRing.GetComponent<Collider>().enabled = true;
+        Part(PrimitiveType.Cylinder, "Deep well opening", well, new Vector3(0f, 0.76f, 0f), new Vector3(1.58f, 0.06f, 1.58f), dark);
+        Block(well, "Well support left", new Vector3(-1.03f, 1.77f, 0f), new Vector3(0.18f, 2.45f, 0.2f), timber);
+        Block(well, "Well support right", new Vector3(1.03f, 1.77f, 0f), new Vector3(0.18f, 2.45f, 0.2f), timber);
+        Branch(well, new Vector3(-0.95f, 2.75f, 0.06f), new Vector3(0.95f, 2.75f, 0.06f), 0.10f, dark);
+        Branch(well, new Vector3(0f, 2.55f, -0.2f), new Vector3(0f, 2.55f, 0.85f), 0.07f, timber);
+        Part(PrimitiveType.Cube, "Well roof", well, new Vector3(0f, 3.02f, 0f), new Vector3(2.8f, 0.18f, 1.9f), dark).rotation = Quaternion.Euler(0f, 0f, -8f);
+        Part(PrimitiveType.Cylinder, "Well hand crank", well, new Vector3(0f, 2.47f, 0.1f), new Vector3(0.065f, 0.64f, 0.065f), timber).rotation = Quaternion.Euler(0f, 0f, 90f);
+    }
+
+    private static void BuildFieldWaterTower(Transform parent, Vector3 position, Material timber, Material dark, Material rust)
+    {
+        Transform tower = ChildRoot(parent, "Leaning Farm Water Tower");
+        tower.position = position;
+        Block(tower, "Tower leg front left", new Vector3(-2f, 2.1f, -1.7f), new Vector3(0.24f, 4.3f, 0.24f), timber, new Vector3(0f, 0f, -8f));
+        Block(tower, "Tower leg front right", new Vector3(2f, 2.1f, -1.7f), new Vector3(0.24f, 4.3f, 0.24f), timber, new Vector3(0f, 0f, 8f));
+        Block(tower, "Tower leg rear left", new Vector3(-2f, 2.1f, 1.7f), new Vector3(0.24f, 4.3f, 0.24f), timber, new Vector3(0f, 0f, -8f));
+        Block(tower, "Tower leg rear right", new Vector3(2f, 2.1f, 1.7f), new Vector3(0.24f, 4.3f, 0.24f), timber, new Vector3(0f, 0f, 8f));
+        Block(tower, "Tank lower rim", new Vector3(0f, 4.3f, 0f), new Vector3(4.7f, 0.35f, 4.2f), rust);
+        Block(tower, "Rusted water tank", new Vector3(0f, 5.55f, 0f), new Vector3(4.2f, 2.2f, 3.8f), dark);
+        Block(tower, "Tank roof", new Vector3(0f, 6.72f, 0f), new Vector3(4.35f, 0.22f, 3.95f), rust);
+        Block(tower, "Cross brace front", new Vector3(0f, 2.0f, -1.76f), new Vector3(3.9f, 0.16f, 0.18f), dark, new Vector3(0f, 0f, 24f));
+        Block(tower, "Cross brace side", new Vector3(2.02f, 2.0f, 0f), new Vector3(0.18f, 0.16f, 3.35f), dark, new Vector3(24f, 0f, 0f));
+    }
+
+    private static void AddOrchardTrees(Transform parent, Material bark, Material leaves, Material fruit)
+    {
+        Random.State old = Random.state;
+        Random.InitState(19102026);
+        Vector3[] orchard =
+        {
+            new Vector3(-10f, 0f, -38f), new Vector3(-4f, 0f, -40f), new Vector3(3f, 0f, -39f),
+            new Vector3(10f, 0f, -37f), new Vector3(17f, 0f, -40f), new Vector3(28f, 0f, -39f),
+            new Vector3(-29f, 0f, -22f), new Vector3(27f, 0f, 13f)
+        };
+        for (int i = 0; i < orchard.Length; i++)
+        {
+            Vector3 spot = orchard[i];
+            if (NearZone(spot, BuildZoneCenter, 15f) || NearZone(spot, new Vector3(-21f, 0f, -34f), 9f)
+                || NearZone(spot, new Vector3(23f, 0f, -30f), 8f)) continue;
+            Transform tree = ChildRoot(parent, i % 3 == 0 ? "Leafless Orchard Tree" : "Fruit Orchard Tree");
+            tree.position = spot;
+            float s = Random.Range(0.82f, 1.18f);
+            tree.localScale = Vector3.one * s;
+            Transform trunk = Part(PrimitiveType.Cylinder, "Orchard trunk with collision", tree,
+                new Vector3(0f, 2.25f, 0f), new Vector3(0.55f, 2.25f, 0.58f), bark);
+            CapsuleCollider trunkCollider = trunk.GetComponent<CapsuleCollider>();
+            if (trunkCollider != null)
+            {
+                trunkCollider.radius = 0.95f;
+                trunkCollider.height = 4.5f;
+            }
+            if (i % 3 == 0)
+            {
+                for (int branch = 0; branch < 5; branch++)
+                {
+                    float angle = branch * Mathf.PI * 0.4f + 0.2f;
+                    Vector3 start = new Vector3(0f, 2.8f + branch * 0.15f, 0f);
+                    Vector3 end = new Vector3(Mathf.Cos(angle) * (1.5f + (branch % 2) * 0.4f), 4.2f + branch * 0.12f, Mathf.Sin(angle) * (1.5f + (branch % 2) * 0.4f));
+                    Branch(tree, start, end, 0.09f, bark);
+                }
+            }
+            else
+            {
+                for (int crown = 0; crown < 5; crown++)
+                {
+                    float angle = crown * Mathf.PI * 0.4f;
+                    Vector3 p = new Vector3(Mathf.Cos(angle) * 0.82f, 4.35f + (crown % 2) * 0.35f, Mathf.Sin(angle) * 0.82f);
+                    Transform foliage = Part(PrimitiveType.Sphere, "Broadleaf crown", tree, p,
+                        new Vector3(Random.Range(1.55f, 2.1f), Random.Range(1.2f, 1.7f), Random.Range(1.45f, 2.0f)), leaves);
+                    foliage.GetComponent<Collider>().enabled = false;
+                }
+                for (int apple = 0; apple < 7; apple++)
+                {
+                    float angle = Random.Range(0f, Mathf.PI * 2f);
+                    Vector3 p = new Vector3(Mathf.Cos(angle) * Random.Range(1.0f, 1.65f), Random.Range(3.45f, 5.0f), Mathf.Sin(angle) * Random.Range(1.0f, 1.65f));
+                    Transform berry = Part(PrimitiveType.Sphere, "Wind-fallen red fruit", tree, p, Vector3.one * Random.Range(0.16f, 0.23f), fruit);
+                    berry.GetComponent<Collider>().enabled = false;
+                }
+            }
+        }
+        Random.state = old;
     }
 
     private static void AddFieldPolishPass(Scene scene)
@@ -1149,6 +1290,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (material != null)
         {
             SetMatte(material);
+            if (kind == SurfaceKind.Mud) ApplyMudRelief(material, surfaceFolder, name);
             EditorUtility.SetDirty(material);
             return material;
         }
@@ -1182,9 +1324,53 @@ public static class ZombiePrototypeVisualUpgrade
         float tiling = kind == SurfaceKind.Asphalt || kind == SurfaceKind.Mud || kind == SurfaceKind.Stone || kind == SurfaceKind.Water
             ? 3.2f : kind == SurfaceKind.Wood ? 1.5f : 2.1f;
         material.mainTextureScale = new Vector2(tiling, tiling);
+        if (kind == SurfaceKind.Mud) ApplyMudRelief(material, surfaceFolder, name);
         SetMatte(material);
         AssetDatabase.CreateAsset(material, materialPath);
         return material;
+    }
+
+    private static void ApplyMudRelief(Material material, string folder, string name)
+    {
+        if (material == null || !material.HasProperty("_BumpMap")) return;
+        string path = folder + "/T_" + name + "_Relief.png";
+        Texture2D relief = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        if (relief == null)
+        {
+            const int size = 256;
+            Texture2D generated = new Texture2D(size, size, TextureFormat.RGB24, false, true)
+            { name = "T_" + name + "_Relief", wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear };
+            Color[] pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float u = x / (float)size;
+                float v = y / (float)size;
+                float hL = Mathf.PerlinNoise((u - 1f / size) * 18f, (v + 0.13f) * 18f);
+                float hR = Mathf.PerlinNoise((u + 1f / size) * 18f, (v + 0.13f) * 18f);
+                float hD = Mathf.PerlinNoise((u + 0.13f) * 18f, (v - 1f / size) * 18f);
+                float hU = Mathf.PerlinNoise((u + 0.13f) * 18f, (v + 1f / size) * 18f);
+                Vector3 normal = new Vector3((hL - hR) * 3.5f, (hD - hU) * 3.5f, 1f).normalized;
+                pixels[y * size + x] = new Color(normal.x * 0.5f + 0.5f, normal.y * 0.5f + 0.5f, normal.z * 0.5f + 0.5f);
+            }
+            generated.SetPixels(pixels);
+            generated.Apply(false, false);
+            File.WriteAllBytes(Path.GetFullPath(path), generated.EncodeToPNG());
+            Object.DestroyImmediate(generated);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer != null)
+            {
+                importer.textureType = TextureImporterType.NormalMap;
+                importer.wrapMode = TextureWrapMode.Repeat;
+                importer.filterMode = FilterMode.Bilinear;
+                importer.SaveAndReimport();
+            }
+            relief = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+        material.SetTexture("_BumpMap", relief);
+        material.SetFloat("_BumpScale", 0.55f);
+        material.EnableKeyword("_NORMALMAP");
     }
 
     private static Texture2D GenerateSurfaceTexture(string name, Color tint, SurfaceKind kind, int size)

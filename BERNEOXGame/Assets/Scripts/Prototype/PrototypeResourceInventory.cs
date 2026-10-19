@@ -45,6 +45,19 @@ public sealed class PrototypeResourceInventory : MonoBehaviour
         return slot == null || slot.amount <= 0 ? "VACÍO" : ItemLabel(slot.item) + "  x" + slot.amount;
     }
 
+    public PrototypeInventoryItem GetSlotItem(int index)
+    {
+        if (slots == null || index < 0 || index >= slots.Length || slots[index] == null)
+            return PrototypeInventoryItem.Wood;
+        return slots[index].item;
+    }
+
+    public int GetSlotAmount(int index)
+    {
+        if (slots == null || index < 0 || index >= slots.Length || slots[index] == null) return 0;
+        return slots[index].amount;
+    }
+
     public bool CanAddResource(PrototypeResourceType type, int amount) => CanAdd(ToItem(type), amount);
 
     public bool TryAddResource(PrototypeResourceType type, int amount) => TryAdd(ToItem(type), amount);

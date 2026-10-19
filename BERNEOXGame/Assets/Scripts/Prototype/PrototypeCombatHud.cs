@@ -22,6 +22,9 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private Text resourceCount;
     private Text attackLabel;
     private Text[] inventorySlotLabels = new Text[PrototypeResourceInventory.SlotCount];
+    private Text[] quickbarLabels = new Text[5];
+    private Image[] quickbarFaces = new Image[5];
+    private int selectedQuickbarSlot;
     private Text craftingMessage;
     private Text toastLabel;
     private CanvasGroup toastGroup;
@@ -103,6 +106,14 @@ public sealed class PrototypeCombatHud : MonoBehaviour
                 + "   FIBRA " + inventory.GetAmount(PrototypeResourceType.Fiber)
                 + "   CHATARRA " + inventory.GetAmount(PrototypeResourceType.Scrap)
                 + "   COMIDA " + inventory.GetAmount(PrototypeResourceType.Food);
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.digit1Key.wasPressedThisFrame) SelectQuickbarSlot(0);
+            if (Keyboard.current.digit2Key.wasPressedThisFrame) SelectQuickbarSlot(1);
+            if (Keyboard.current.digit3Key.wasPressedThisFrame) SelectQuickbarSlot(2);
+            if (Keyboard.current.digit4Key.wasPressedThisFrame) SelectQuickbarSlot(3);
+            if (Keyboard.current.digit5Key.wasPressedThisFrame) SelectQuickbarSlot(4);
+        }
         if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
         if (buildingStatus != null && shelterBuilder != null && shelterBuilder.IsPlacing)
             buildingStatus.text = shelterBuilder.PlacementStatus;
@@ -140,6 +151,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         BuildAttackButton(root);
         BuildInventoryButton(root);
         BuildConstructionButton(root);
+        BuildQuickbar(root);
         BuildInventoryOverlay(root);
         BuildCraftingOverlay(root);
         BuildConstructionOverlay(root);
@@ -163,14 +175,15 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         GameObject buttonObject = new GameObject("Inventory Button", typeof(RectTransform), typeof(Image), typeof(Button));
         RectTransform rect = buttonObject.GetComponent<RectTransform>();
         rect.SetParent(root, false);
-        Anchor(rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -48f), new Vector2(200f, 62f));
+        Anchor(rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-112f, -48f), new Vector2(188f, 62f));
         Image image = buttonObject.GetComponent<Image>();
         image.color = Violet;
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
         button.onClick.AddListener(ToggleInventory);
-        Text label = MakeText(buttonObject.transform, "Inventory Button Label", "MOCHILA  ·  I", 18, FontStyle.Bold, Color.white);
-        Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        AddBackpackIcon(buttonObject.transform);
+        Text label = MakeText(buttonObject.transform, "Inventory Button Label", "MOCHILA", 17, FontStyle.Bold, Color.white);
+        Anchor(label.rectTransform, new Vector2(0.30f, 0f), Vector2.one, new Vector2(-2f, 0f), new Vector2(-8f, 0f));
         label.alignment = TextAnchor.MiddleCenter;
     }
 
@@ -179,15 +192,82 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         GameObject buttonObject = new GameObject("Construction Button", typeof(RectTransform), typeof(Image), typeof(Button));
         RectTransform rect = buttonObject.GetComponent<RectTransform>();
         rect.SetParent(root, false);
-        Anchor(rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -124f), new Vector2(200f, 58f));
+        Anchor(rect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(112f, -48f), new Vector2(188f, 62f));
         Image image = buttonObject.GetComponent<Image>();
         image.color = new Color(0.32f, 0.62f, 0.44f, 1f);
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
         button.onClick.AddListener(OpenConstruction);
-        Text label = MakeText(buttonObject.transform, "Construction Button Label", "CONSTRUIR", 17, FontStyle.Bold, Color.white);
-        Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        AddHammerIcon(buttonObject.transform);
+        Text label = MakeText(buttonObject.transform, "Construction Button Label", "CONSTRUIR", 16, FontStyle.Bold, Color.white);
+        Anchor(label.rectTransform, new Vector2(0.34f, 0f), Vector2.one, Vector2.zero, new Vector2(-8f, 0f));
         label.alignment = TextAnchor.MiddleCenter;
+    }
+
+    private void BuildQuickbar(RectTransform root)
+    {
+        RectTransform bar = NewRect(root, "Quick Item Bar");
+        Anchor(bar, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 22f), new Vector2(590f, 96f));
+        bar.gameObject.AddComponent<Image>().color = new Color(Ink.r, Ink.g, Ink.b, 0.88f);
+        for (int i = 0; i < quickbarLabels.Length; i++)
+        {
+            int index = i;
+            GameObject slot = new GameObject("Quick Slot " + (i + 1), typeof(RectTransform), typeof(Image), typeof(Button));
+            RectTransform rect = slot.GetComponent<RectTransform>();
+            rect.SetParent(bar, false);
+            Anchor(rect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f + i * 116f, 0f), new Vector2(108f, 78f));
+            quickbarFaces[i] = slot.GetComponent<Image>();
+            quickbarFaces[i].color = i == selectedQuickbarSlot ? Violet : new Color(0.17f, 0.14f, 0.22f, 1f);
+            Button button = slot.GetComponent<Button>();
+            button.targetGraphic = quickbarFaces[i];
+            button.onClick.AddListener(() => SelectQuickbarSlot(index));
+            Text number = MakeText(slot.transform, "Slot Number", (i + 1).ToString(), 13, FontStyle.Bold, new Color(0.79f, 0.72f, 0.91f));
+            Anchor(number.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(13f, -11f), new Vector2(20f, 18f));
+            Text label = MakeText(slot.transform, "Slot Item", "VACÍO", 13, FontStyle.Bold, Color.white);
+            Anchor(label.rectTransform, new Vector2(0f, 0f), Vector2.one, new Vector2(5f, 3f), new Vector2(-10f, -23f));
+            label.alignment = TextAnchor.MiddleCenter;
+            quickbarLabels[i] = label;
+        }
+    }
+
+    private void SelectQuickbarSlot(int index)
+    {
+        if (index < 0 || index >= quickbarLabels.Length) return;
+        selectedQuickbarSlot = index;
+        for (int i = 0; i < quickbarFaces.Length; i++)
+            if (quickbarFaces[i] != null) quickbarFaces[i].color = i == selectedQuickbarSlot ? Violet : new Color(0.17f, 0.14f, 0.22f, 1f);
+        if (inventory == null || inventory.GetSlotAmount(index) <= 0) return;
+        switch (inventory.GetSlotItem(index))
+        {
+            case PrototypeInventoryItem.Knife: meleeAttack?.Equip(PrototypeWeapon.Knife); break;
+            case PrototypeInventoryItem.Bat: meleeAttack?.Equip(PrototypeWeapon.Bat); break;
+            case PrototypeInventoryItem.Axe: meleeAttack?.Equip(PrototypeWeapon.Axe); break;
+        }
+    }
+
+    private void AddBackpackIcon(Transform parent)
+    {
+        RectTransform bag = NewRect(parent, "Backpack Icon");
+        Anchor(bag, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(33f, 0f), new Vector2(27f, 29f));
+        bag.gameObject.AddComponent<Image>().color = new Color(0.94f, 0.88f, 1f, 1f);
+        RectTransform flap = NewRect(bag, "Backpack Flap");
+        Anchor(flap, new Vector2(0.16f, 0.70f), new Vector2(0.84f, 0.94f), Vector2.zero, Vector2.zero);
+        flap.gameObject.AddComponent<Image>().color = Violet;
+        RectTransform strap = NewRect(bag, "Backpack Strap");
+        Anchor(strap, new Vector2(0.39f, 0.35f), new Vector2(0.61f, 0.76f), Vector2.zero, Vector2.zero);
+        strap.gameObject.AddComponent<Image>().color = Violet;
+    }
+
+    private void AddHammerIcon(Transform parent)
+    {
+        RectTransform handle = NewRect(parent, "Hammer Handle");
+        Anchor(handle, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(31f, -1f), new Vector2(7f, 30f));
+        handle.localRotation = Quaternion.Euler(0f, 0f, -38f);
+        handle.gameObject.AddComponent<Image>().color = new Color(0.95f, 0.91f, 0.84f, 1f);
+        RectTransform head = NewRect(parent, "Hammer Head");
+        Anchor(head, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 10f), new Vector2(24f, 9f));
+        head.localRotation = Quaternion.Euler(0f, 0f, -38f);
+        head.gameObject.AddComponent<Image>().color = new Color(0.75f, 0.76f, 0.80f, 1f);
     }
 
     private void BuildConstructionOverlay(RectTransform root)
@@ -397,6 +477,11 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         if (inventory == null || inventorySlotLabels == null) return;
         for (int i = 0; i < inventorySlotLabels.Length; i++)
             if (inventorySlotLabels[i] != null) inventorySlotLabels[i].text = inventory.GetSlotLabel(i);
+        if (quickbarLabels != null)
+            for (int i = 0; i < quickbarLabels.Length; i++)
+                if (quickbarLabels[i] != null)
+                    quickbarLabels[i].text = inventory.GetSlotAmount(i) > 0
+                        ? inventory.GetSlotLabel(i).Replace("  ", "\n") : "VACÍO";
     }
 
     private void CraftBat()

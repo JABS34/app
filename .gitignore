@@ -30,3 +30,4 @@ Desktop.ini
 # Ignore incomplete projects from earlier setup attempts.
 /UnityProject/
 /GameProject/
+/BERNEOXGame/.dotnet-cli-home/
