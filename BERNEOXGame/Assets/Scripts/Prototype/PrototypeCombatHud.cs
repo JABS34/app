@@ -16,7 +16,10 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private PrototypeResourceInventory inventory;
     private PrototypeHordeDirector hordeDirector;
     private PrototypeShelterBuilder shelterBuilder;
+    private PrototypePlayerController playerMovement;
     private Image healthFill;
+    private Image staminaFill;
+    private Text staminaLabel;
     private Text healthValue;
     private Text zombieCount;
     private Text resourceCount;
@@ -31,6 +34,10 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private float toastVisibleUntil;
     private Button attackButton;
     private RectTransform attackButtonRect;
+    private Button sprintButton;
+    private Text sprintLabel;
+    private CanvasGroup hitMarker;
+    private Coroutine hitMarkerPulse;
     private CanvasGroup defeatOverlay;
     private GameObject inventoryOverlay;
     private GameObject craftingOverlay;
@@ -53,6 +60,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         inventory = FindAnyObjectByType<PrototypeResourceInventory>();
         hordeDirector = FindAnyObjectByType<PrototypeHordeDirector>();
         shelterBuilder = FindAnyObjectByType<PrototypeShelterBuilder>();
+        playerMovement = FindAnyObjectByType<PrototypePlayerController>();
         if (playerHealth == null || meleeAttack == null)
         {
             Debug.LogError("Combat HUD needs a player health component and melee attack component.");
@@ -64,6 +72,8 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         playerHealth.HealthChanged += OnHealthChanged;
         playerHealth.Defeated += OnPlayerDefeated;
         meleeAttack.Attacked += OnAttackExecuted;
+        meleeAttack.HitConfirmed += OnAttackHit;
+        if (playerMovement != null) playerMovement.StaminaChanged += OnStaminaChanged;
         if (inventory != null) inventory.Changed += RefreshInventory;
         if (pickupInteractor != null)
         {
@@ -72,6 +82,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         }
         Time.timeScale = 1f;
         OnHealthChanged(playerHealth.CurrentHealth, playerHealth.MaximumHealth);
+        if (playerMovement != null) OnStaminaChanged(playerMovement.CurrentStamina, playerMovement.MaximumStamina);
         RefreshInventory();
     }
 
@@ -83,6 +94,12 @@ public sealed class PrototypeCombatHud : MonoBehaviour
             playerHealth.Defeated -= OnPlayerDefeated;
         }
         if (meleeAttack != null) meleeAttack.Attacked -= OnAttackExecuted;
+        if (meleeAttack != null) meleeAttack.HitConfirmed -= OnAttackHit;
+        if (playerMovement != null)
+        {
+            playerMovement.StaminaChanged -= OnStaminaChanged;
+            playerMovement.SetSprintHeld(false);
+        }
         if (inventory != null) inventory.Changed -= RefreshInventory;
         if (pickupInteractor != null)
         {
@@ -100,6 +117,8 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         healthFill.fillAmount = displayedHealth;
         healthFill.color = Color.Lerp(Coral, Mint, Mathf.InverseLerp(0.12f, 0.9f, displayedHealth));
         if (attackLabel != null) attackLabel.text = pickupInteractor != null ? pickupInteractor.ActionLabel : "ATACAR";
+        if (sprintLabel != null && playerMovement != null)
+            sprintLabel.text = playerMovement.IsSprinting ? "CORRIENDO" : playerMovement.CurrentStamina <= 1f ? "SIN RESISTENCIA" : "MANTENER · CORRER";
         if (resourceCount != null && inventory != null)
             resourceCount.text = "MADERA " + inventory.GetAmount(PrototypeResourceType.Wood)
                 + "   PIEDRA " + inventory.GetAmount(PrototypeResourceType.Stone)
@@ -152,6 +171,8 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         BuildInventoryButton(root);
         BuildConstructionButton(root);
         BuildQuickbar(root);
+        BuildSprintControl(root);
+        BuildHitMarker(root);
         BuildInventoryOverlay(root);
         BuildCraftingOverlay(root);
         BuildConstructionOverlay(root);
@@ -620,6 +641,106 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         attackPulse = StartCoroutine(PulseAttackButton());
     }
 
+    private void BuildSprintControl(RectTransform root)
+    {
+        RectTransform panel = NewRect(root, "Stamina Panel");
+        Anchor(panel, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-45f, 302f), new Vector2(226f, 38f));
+        Image surface = panel.gameObject.AddComponent<Image>();
+        surface.color = Ink;
+        surface.raycastTarget = false;
+        staminaLabel = MakeText(panel, "Stamina Label", "RESISTENCIA 100%", 13, FontStyle.Bold, Color.white);
+        staminaLabel.alignment = TextAnchor.MiddleLeft;
+        Anchor(staminaLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 16f), new Vector2(-20f, -2f));
+        RectTransform track = NewRect(panel, "Stamina Track");
+        Anchor(track, Vector2.zero, new Vector2(1f, 0f), new Vector2(12f, 7f), new Vector2(-12f, 12f));
+        track.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.16f);
+        RectTransform fill = NewRect(track, "Stamina Fill");
+        fill.anchorMin = Vector2.zero;
+        fill.anchorMax = Vector2.one;
+        fill.offsetMin = Vector2.zero;
+        fill.offsetMax = Vector2.zero;
+        staminaFill = fill.gameObject.AddComponent<Image>();
+        staminaFill.type = Image.Type.Filled;
+        staminaFill.fillMethod = Image.FillMethod.Horizontal;
+        staminaFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        staminaFill.color = new Color(0.58f, 0.82f, 1f, 1f);
+        staminaFill.raycastTarget = false;
+
+        GameObject buttonObject = new GameObject("Sprint Button", typeof(RectTransform), typeof(Image), typeof(Button));
+        RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
+        buttonRect.SetParent(root, false);
+        Anchor(buttonRect, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-45f, 363f), new Vector2(184f, 54f));
+        Image buttonFace = buttonObject.GetComponent<Image>();
+        buttonFace.color = new Color(0.24f, 0.49f, 0.72f, 0.96f);
+        sprintButton = buttonObject.GetComponent<Button>();
+        sprintButton.targetGraphic = buttonFace;
+        sprintLabel = MakeText(buttonObject.transform, "Sprint Label", "MANTENER · CORRER", 15, FontStyle.Bold, Color.white);
+        sprintLabel.alignment = TextAnchor.MiddleCenter;
+        Anchor(sprintLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(5f, 3f), new Vector2(-10f, -6f));
+        EventTrigger trigger = buttonObject.AddComponent<EventTrigger>();
+        AddPointerEvent(trigger, EventTriggerType.PointerDown, true);
+        AddPointerEvent(trigger, EventTriggerType.PointerUp, false);
+        AddPointerEvent(trigger, EventTriggerType.PointerExit, false);
+    }
+
+    private void AddPointerEvent(EventTrigger trigger, EventTriggerType eventType, bool held)
+    {
+        EventTrigger.Entry entry = new EventTrigger.Entry { eventID = eventType };
+        entry.callback.AddListener(_ =>
+        {
+            if (playerMovement != null) playerMovement.SetSprintHeld(held);
+        });
+        trigger.triggers.Add(entry);
+    }
+
+    private void BuildHitMarker(RectTransform root)
+    {
+        RectTransform marker = NewRect(root, "Hit Confirm Marker");
+        Anchor(marker, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(36f, 36f));
+        hitMarker = marker.gameObject.AddComponent<CanvasGroup>();
+        hitMarker.alpha = 0f;
+        hitMarker.interactable = false;
+        hitMarker.blocksRaycasts = false;
+        for (int i = 0; i < 4; i++)
+        {
+            RectTransform tick = NewRect(marker, "Hit Tick " + i);
+            float angle = 45f + i * 90f;
+            tick.localRotation = Quaternion.Euler(0f, 0f, angle);
+            Anchor(tick, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 11f), new Vector2(3f, 8f));
+            tick.gameObject.AddComponent<Image>().color = new Color(1f, 0.92f, 0.72f, 1f);
+        }
+    }
+
+    private void OnStaminaChanged(float current, float maximum)
+    {
+        float ratio = maximum > 0f ? current / maximum : 0f;
+        if (staminaFill != null) staminaFill.fillAmount = ratio;
+        if (staminaFill != null) staminaFill.color = Color.Lerp(Coral, new Color(0.58f, 0.82f, 1f), ratio);
+        if (staminaLabel != null) staminaLabel.text = "RESISTENCIA " + Mathf.RoundToInt(ratio * 100f) + "%";
+    }
+
+    private void OnAttackHit(int hitCount)
+    {
+        if (hitMarkerPulse != null) StopCoroutine(hitMarkerPulse);
+        hitMarkerPulse = StartCoroutine(ShowHitMarker(hitCount));
+    }
+
+    private IEnumerator ShowHitMarker(int hitCount)
+    {
+        if (hitMarker == null) yield break;
+        float elapsed = 0f;
+        float duration = hitCount > 1 ? 0.5f : 0.34f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            hitMarker.alpha = t < 0.12f ? t / 0.12f : 1f - Mathf.InverseLerp(0.55f, 1f, t);
+            yield return null;
+        }
+        hitMarker.alpha = 0f;
+        hitMarkerPulse = null;
+    }
+
     private IEnumerator PulseAttackButton()
     {
         if (attackButtonRect == null) yield break;
@@ -644,6 +765,8 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private void OnPlayerDefeated()
     {
         if (attackButton != null) attackButton.interactable = false;
+        if (sprintButton != null) sprintButton.interactable = false;
+        if (playerMovement != null) playerMovement.SetSprintHeld(false);
         if (defeatOverlay != null) return;
 
         Canvas canvas = FindAnyObjectByType<Canvas>();

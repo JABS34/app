@@ -20,6 +20,7 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
     private float speedMultiplier = 1f;
     private float nextAttackTime;
     private float verticalSpeed;
+    private Vector3 hitImpulse;
     private bool defeated;
 
     public event Action<PrototypeZombieEnemy> Defeated;
@@ -69,8 +70,9 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
         if (controller.isGrounded && verticalSpeed < 0f) verticalSpeed = -2f;
         else verticalSpeed += Physics.gravity.y * Time.deltaTime;
 
-        Vector3 velocity = (moving ? direction * moveSpeed * speedMultiplier : Vector3.zero) + Vector3.up * verticalSpeed;
+        Vector3 velocity = (moving ? direction * moveSpeed * speedMultiplier : Vector3.zero) + hitImpulse + Vector3.up * verticalSpeed;
         controller.Move(velocity * Time.deltaTime);
+        hitImpulse = Vector3.MoveTowards(hitImpulse, Vector3.zero, 9f * Time.deltaTime);
 
         if (visual != null)
         {
@@ -112,8 +114,17 @@ public sealed class PrototypeZombieEnemy : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
+        TakeDamage(damage, transform.position - transform.forward);
+    }
+
+    public void TakeDamage(float damage, Vector3 hitOrigin)
+    {
         if (defeated || damage <= 0f) return;
         health = Mathf.Max(0f, health - damage);
+        Vector3 knockback = transform.position - hitOrigin;
+        knockback.y = 0f;
+        if (knockback.sqrMagnitude > 0.001f) hitImpulse = knockback.normalized * 2.2f;
+        if (characterAnimation != null) characterAnimation.PlayHit();
         if (health > 0f) return;
 
         defeated = true;

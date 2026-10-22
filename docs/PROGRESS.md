@@ -1,6 +1,6 @@
 # BERNEOX project progress
 
-Updated: 2026-10-10
+Updated: 2026-10-21
 
 ## Confirmed product decisions
 
@@ -28,6 +28,7 @@ Updated: 2026-10-10
 - A scene visual pass adds a dark, foggy night setup, roughly 60 procedural pines plus dead trees and undergrowth, an abandoned shelter, a wrecked vehicle, a small ember camp, distinct 3D material pickup models, a detailed player rig, and three visible dormant zombies that activate as the first horde. Player and zombie limbs animate procedurally to keep the prototype asset-free and lightweight. Visual quality and Android performance still require an in-Unity review.
 - A second cumulative visual pass is prepared in the Editor scene tool: two ruined village buildings, a collapsed checkpoint, cracked road, broken fences, street props, procedural grunge surface textures, animated dry grass, drifting ash, chimney smoke, flickering lights, a backpack axe, and a more hunched zombie idle. It is idempotent and saves a separate scene root; Unity must leave Play mode before the callback can apply it. The visual source uses procedural geometry and textures; production-grade rigged characters and environment assets remain a later art pass.
 - The V6 field pass adds procedural ground normal relief, a collidable stone well and farm water tower, broadleaf fruit trees and bare trees, and trunk collisions. The combat HUD now has a five-slot quickbar, touch/1–5 selection, weapon selection from knife/bat/axe slots, and backpack/hammer icons; the joystick has a larger touch activation area and clearer layered feedback. Editor auto-upgrade applies V6 after exiting Play mode or reopening the scene.
+- The player now accelerates and brakes smoothly, can sprint with Shift or a press-and-hold mobile button, and uses a regenerating stamina pool. The third-person camera supports a right-side touch drag or right mouse drag, eases its orbit and follow, and shortens its distance around obstacles. Player animation blends into walk/run gait, leans into movement, and has wind-up/strike melee, damage response, and a gradual defeat pose. Zombies recoil and flinch when hit. A central hit marker confirms a successful zombie strike; the HUD shows stamina and sprint state. These adjustments are source-complete but need hands-on Unity/Android play review.
 - Fixed a Unity 6 startup exception in the HUD by switching its built-in font lookup to `LegacyRuntime.ttf`.
 - The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
 - Unity editor menu `BERNEOX > Crear inicio y catálogo` opens the existing hub scene, or creates it if missing.
@@ -36,7 +37,7 @@ Updated: 2026-10-10
 
 - The first visual scene pass was applied and saved by Unity. The C# compiler stages for the second pass completed without C# diagnostics; the full scene-generation callback and in-Unity visual/runtime check remain pending until Play mode ends. A previous Unity 6 font exception was fixed in source.
 - `git diff --check` is run for this change before commit.
-- Runtime and Editor C# projects compile with zero warnings and errors. The Unity Editor is installed and licensed, but was in Play mode during this pass, so V6 scene serialization and the new in-Unity preview remain pending until Edit mode.
+- The last known runtime and Editor C# project builds compiled with zero warnings and errors. The Unity Editor is installed and licensed, but was in Play mode during this pass, so V6 scene serialization and the new in-Unity preview remain pending until Edit mode. Rebuild after the current movement/HUD changes before committing them.
 - This is still an early prototype. Online accounts, networking, currency/rewards, and the other catalog games are not implemented.
 
 ## Prioritized next tasks

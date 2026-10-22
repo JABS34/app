@@ -13,6 +13,7 @@ public sealed class PrototypeMeleeAttack : MonoBehaviour
     private float nextAttackTime;
     public PrototypeWeapon EquippedWeapon { get; private set; } = PrototypeWeapon.Knife;
     public event Action Attacked;
+    public event Action<int> HitConfirmed;
 
     public void Equip(PrototypeWeapon weapon)
     {
@@ -56,6 +57,7 @@ public sealed class PrototypeMeleeAttack : MonoBehaviour
         forward.Normalize();
 
         PrototypeZombieEnemy[] zombies = FindObjectsByType<PrototypeZombieEnemy>();
+        int hitCount = 0;
         foreach (PrototypeZombieEnemy zombie in zombies)
         {
             if (zombie == null || zombie.IsDefeated) continue;
@@ -64,8 +66,10 @@ public sealed class PrototypeMeleeAttack : MonoBehaviour
             float distance = toZombie.magnitude;
             if (distance > range || distance < 0.001f) continue;
             if (Vector3.Dot(forward, toZombie / distance) < facingThreshold) continue;
-            zombie.TakeDamage(damage);
+            zombie.TakeDamage(damage, transform.position);
+            hitCount++;
         }
+        if (hitCount > 0) HitConfirmed?.Invoke(hitCount);
     }
 }
 
