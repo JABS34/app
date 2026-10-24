@@ -14,7 +14,7 @@ Al comenzar, el jugador tiene 60 segundos de preparación (provisional); la prim
 
 Para crear la escena en Unity: espera a que termine de importar los scripts y usa el menú `BERNEOX > Crear escena de prototipo Zombie Survival`. En la escena, pulsa Play. En computadora se mueve con WASD/flechas, ataca con Espacio, interactúa con `E` y abre la mochila con `I`; en móvil se usan el joystick y los botones en pantalla. La mochila y la mesa pausan la partida mientras están abiertas. La mesa solo se puede usar durante la preparación, entre hordas.
 
-La perspectiva elegida es tercera persona detrás del personaje. La altura, distancia y suavizado de cámara, velocidad, consumo de resistencia y duración de animación siguen siendo valores provisionales. Los enemigos, el combate y la interfaz son prototipos funcionales sujetos a revisión visual; estos últimos cambios todavía requieren validación en Unity y una compilación Android. No se debe dar por aplicado el pase de entorno V6 en la escena hasta salir de Play y comprobarlo en `ZombiePrototype`.
+La perspectiva elegida es tercera persona detrás del personaje. La altura, distancia y suavizado de cámara, velocidad, consumo de resistencia y duración de animación siguen siendo valores provisionales. Los enemigos, el combate y la interfaz son prototipos funcionales sujetos a revisión visual; estos últimos cambios todavía requieren validación en Unity y una compilación Android. Unity se detuvo al mostrar sus términos de software antes de guardar el pase V6. El generador ya está corregido para reparar la escena parcial; después de aceptar esos términos en Unity, deja que la escena `ZombiePrototype` termine de abrirse para que guarde la actualización.
 
 ## Modalidad de supervivencia acordada
 

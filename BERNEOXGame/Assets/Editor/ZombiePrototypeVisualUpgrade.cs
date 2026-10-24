@@ -80,6 +80,12 @@ public static class ZombiePrototypeVisualUpgrade
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log("Zombie Survival: relieve de terreno, estructuras rurales y especies de árboles añadidos.");
         }
+        else if (NeedsFieldLifeRepair(scene))
+        {
+            AddFieldLifePass(scene);
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            Debug.Log("Zombie Survival: se reparó y completó la actualización parcial del campo.");
+        }
     }
 
     [MenuItem("BERNEOX/Actualizar escenario apocalíptico")]
@@ -91,7 +97,7 @@ public static class ZombiePrototypeVisualUpgrade
             EditorUtility.DisplayDialog("Zombie Survival", "Abre primero Assets/Scenes/ZombiePrototype.unity.", "Aceptar");
             return;
         }
-        if (HasFieldLifePass(scene))
+        if (HasFieldLifePass(scene) && !NeedsFieldLifeRepair(scene))
         {
             EditorUtility.DisplayDialog("Zombie Survival", "La mejora visual ya está aplicada en esta escena.", "Aceptar");
             return;
@@ -101,7 +107,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
         if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
-        if (!HasFieldLifePass(scene)) AddFieldLifePass(scene);
+        if (!HasFieldLifePass(scene) || NeedsFieldLifeRepair(scene)) AddFieldLifePass(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
     }
 
@@ -113,7 +119,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (!HasDistrictPass(scene)) AddDistrictAndCharacterPass(scene);
         if (!HasNaturalForestPass(scene)) RefineNaturalForest(scene);
         if (!HasFieldPolishPass(scene)) AddFieldPolishPass(scene);
-        if (!HasFieldLifePass(scene)) AddFieldLifePass(scene);
+        if (!HasFieldLifePass(scene) || NeedsFieldLifeRepair(scene)) AddFieldLifePass(scene);
         AssetDatabase.SaveAssets();
         EditorSceneManager.SaveScene(scene, ScenePath);
         Debug.Log("Zombie Survival: mejoras de escenario aplicadas y guardadas desde la herramienta de edición.");
@@ -582,15 +588,41 @@ public static class ZombiePrototypeVisualUpgrade
 
     private static bool HasFieldLifePass(Scene scene)
     {
+        return FindRootObject(scene, FieldLifeMarkerName) != null;
+    }
+
+    private static GameObject FindRootObject(Scene scene, string objectName)
+    {
         foreach (GameObject root in scene.GetRootGameObjects())
-            if (root.name == FieldLifeMarkerName) return true;
-        return false;
+            if (root.name == objectName) return root;
+        return null;
+    }
+
+    private static bool NeedsFieldLifeRepair(Scene scene)
+    {
+        GameObject marker = FindRootObject(scene, FieldLifeMarkerName);
+        if (marker == null) return true;
+        Transform well = marker.transform.Find("Old Stone Well");
+        Transform basin = well != null ? well.Find("Stone well basin") : null;
+        if (basin == null || basin.GetComponent<Collider>() == null || !basin.GetComponent<Collider>().enabled
+            || well.Find("Well support left") == null || well.Find("Well support right") == null) return true;
+        if (marker.transform.Find("Leaning Farm Water Tower") == null) return true;
+        for (int i = 0; i < marker.transform.childCount; i++)
+        {
+            string childName = marker.transform.GetChild(i).name;
+            if (childName == "Fruit Orchard Tree" || childName == "Leafless Orchard Tree") return false;
+        }
+        return true;
     }
 
     private static void AddFieldLifePass(Scene scene)
     {
-        GameObject marker = new GameObject(FieldLifeMarkerName);
-        SceneManager.MoveGameObjectToScene(marker, scene);
+        GameObject marker = FindRootObject(scene, FieldLifeMarkerName);
+        if (marker == null)
+        {
+            marker = new GameObject(FieldLifeMarkerName);
+            SceneManager.MoveGameObjectToScene(marker, scene);
+        }
         Material mud = SurfaceMaterial("CompactedBuildSoil", new Color(0.34f, 0.28f, 0.21f), SurfaceKind.Mud);
         GameObject ground = GameObject.Find("Ground_Prototype");
         if (ground != null)
@@ -614,9 +646,30 @@ public static class ZombiePrototypeVisualUpgrade
         Material bark = SurfaceMaterial("FieldBarkGrey", new Color(0.31f, 0.29f, 0.24f), SurfaceKind.Wood);
         Material leaf = SurfaceMaterial("FieldCanopyMoss", new Color(0.20f, 0.31f, 0.18f), SurfaceKind.Foliage);
         Material fruit = SurfaceMaterial("OrchardFruit", new Color(0.66f, 0.25f, 0.12f), SurfaceKind.Foliage);
-        BuildFieldWell(root, new Vector3(23f, 0f, -30f), stone, timber, dark);
-        BuildFieldWaterTower(root, new Vector3(-21f, 0f, -34f), timber, dark, rustMaterial());
-        AddOrchardTrees(root, bark, leaf, fruit);
+        Transform existingWell = root.Find("Old Stone Well");
+        bool incompleteWell = existingWell != null && (existingWell.Find("Stone well basin") == null
+            || existingWell.Find("Well support left") == null || existingWell.Find("Well support right") == null);
+        if (existingWell == null || incompleteWell)
+        {
+            if (existingWell != null) Object.DestroyImmediate(existingWell.gameObject);
+            BuildFieldWell(root, new Vector3(23f, 0f, -30f), stone, timber, dark);
+        }
+        else EnsureWellBasinCollision(existingWell.Find("Stone well basin"));
+
+        if (root.Find("Leaning Farm Water Tower") == null)
+            BuildFieldWaterTower(root, new Vector3(-21f, 0f, -34f), timber, dark, rustMaterial());
+        bool hasOrchard = false;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            string childName = root.GetChild(i).name;
+            if (childName == "Fruit Orchard Tree" || childName == "Leafless Orchard Tree")
+            {
+                hasOrchard = true;
+                break;
+            }
+        }
+        if (!hasOrchard) AddOrchardTrees(root, bark, leaf, fruit);
+        GroundExistingPickupsAndStones(stone);
         MarkEnvironmentStatic(root);
         EditorSceneManager.MarkSceneDirty(scene);
     }
@@ -628,7 +681,7 @@ public static class ZombiePrototypeVisualUpgrade
         Transform well = ChildRoot(parent, "Old Stone Well");
         well.position = position;
         Transform baseRing = Part(PrimitiveType.Cylinder, "Stone well basin", well, new Vector3(0f, 0.48f, 0f), new Vector3(2.3f, 0.48f, 2.3f), stone);
-        baseRing.GetComponent<Collider>().enabled = true;
+        EnsureWellBasinCollision(baseRing);
         Part(PrimitiveType.Cylinder, "Deep well opening", well, new Vector3(0f, 0.76f, 0f), new Vector3(1.58f, 0.06f, 1.58f), dark);
         Block(well, "Well support left", new Vector3(-1.03f, 1.77f, 0f), new Vector3(0.18f, 2.45f, 0.2f), timber);
         Block(well, "Well support right", new Vector3(1.03f, 1.77f, 0f), new Vector3(0.18f, 2.45f, 0.2f), timber);
@@ -636,6 +689,18 @@ public static class ZombiePrototypeVisualUpgrade
         Branch(well, new Vector3(0f, 2.55f, -0.2f), new Vector3(0f, 2.55f, 0.85f), 0.07f, timber);
         Part(PrimitiveType.Cube, "Well roof", well, new Vector3(0f, 3.02f, 0f), new Vector3(2.8f, 0.18f, 1.9f), dark).rotation = Quaternion.Euler(0f, 0f, -8f);
         Part(PrimitiveType.Cylinder, "Well hand crank", well, new Vector3(0f, 2.47f, 0.1f), new Vector3(0.065f, 0.64f, 0.065f), timber).rotation = Quaternion.Euler(0f, 0f, 90f);
+    }
+
+    private static void EnsureWellBasinCollision(Transform basin)
+    {
+        if (basin == null) return;
+        MeshFilter filter = basin.GetComponent<MeshFilter>();
+        if (filter == null || filter.sharedMesh == null) return;
+        MeshCollider collider = basin.GetComponent<MeshCollider>();
+        if (collider == null) collider = basin.gameObject.AddComponent<MeshCollider>();
+        collider.sharedMesh = null;
+        collider.sharedMesh = filter.sharedMesh;
+        collider.enabled = true;
     }
 
     private static void BuildFieldWaterTower(Transform parent, Vector3 position, Material timber, Material dark, Material rust)
