@@ -25,8 +25,18 @@ public static class ZombiePrototypeVisualUpgrade
     static ZombiePrototypeVisualUpgrade()
     {
         EditorApplication.delayCall += UpgradeOpenScene;
+        EditorApplication.delayCall += RepairPartialFieldPass;
         EditorSceneManager.sceneOpened += OnSceneOpened;
         EditorApplication.playModeStateChanged += OnPlayModeChanged;
+    }
+
+    private static void RepairPartialFieldPass()
+    {
+        Scene scene = EditorSceneManager.GetSceneByPath(ScenePath);
+        if (!scene.IsValid() || !scene.isLoaded || !HasFieldLifePass(scene) || !NeedsFieldLifeRepair(scene)) return;
+        AddFieldLifePass(scene);
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        Debug.Log("Zombie Survival: actualización parcial del campo reparada y guardada.");
     }
 
     private static void OnPlayModeChanged(PlayModeStateChange state)
@@ -43,7 +53,10 @@ public static class ZombiePrototypeVisualUpgrade
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         Scene scene = SceneManager.GetActiveScene();
-        if (scene.path != ScenePath || scene.isDirty) return;
+        if (scene.path != ScenePath) return;
+        // A previous failed V6 pass leaves the scene dirty. Repair only that known partial pass;
+        // keep the normal guard for any unrelated unsaved scene edits.
+        if (scene.isDirty && (!HasFieldLifePass(scene) || !NeedsFieldLifeRepair(scene))) return;
         if (!HasUpgradeMarker(scene))
         {
             UpgradeScene(scene);
@@ -607,12 +620,7 @@ public static class ZombiePrototypeVisualUpgrade
         if (basin == null || basin.GetComponent<Collider>() == null || !basin.GetComponent<Collider>().enabled
             || well.Find("Well support left") == null || well.Find("Well support right") == null) return true;
         if (marker.transform.Find("Leaning Farm Water Tower") == null) return true;
-        for (int i = 0; i < marker.transform.childCount; i++)
-        {
-            string childName = marker.transform.GetChild(i).name;
-            if (childName == "Fruit Orchard Tree" || childName == "Leafless Orchard Tree") return false;
-        }
-        return true;
+        return !HasCompleteOrchard(marker.transform);
     }
 
     private static void AddFieldLifePass(Scene scene)
@@ -658,17 +666,11 @@ public static class ZombiePrototypeVisualUpgrade
 
         if (root.Find("Leaning Farm Water Tower") == null)
             BuildFieldWaterTower(root, new Vector3(-21f, 0f, -34f), timber, dark, rustMaterial());
-        bool hasOrchard = false;
-        for (int i = 0; i < root.childCount; i++)
+        if (!HasCompleteOrchard(root))
         {
-            string childName = root.GetChild(i).name;
-            if (childName == "Fruit Orchard Tree" || childName == "Leafless Orchard Tree")
-            {
-                hasOrchard = true;
-                break;
-            }
+            RemoveOrchardTrees(root);
+            AddOrchardTrees(root, bark, leaf, fruit);
         }
-        if (!hasOrchard) AddOrchardTrees(root, bark, leaf, fruit);
         GroundExistingPickupsAndStones(stone);
         MarkEnvironmentStatic(root);
         EditorSceneManager.MarkSceneDirty(scene);
@@ -763,18 +765,55 @@ public static class ZombiePrototypeVisualUpgrade
                     Vector3 p = new Vector3(Mathf.Cos(angle) * 0.82f, 4.35f + (crown % 2) * 0.35f, Mathf.Sin(angle) * 0.82f);
                     Transform foliage = Part(PrimitiveType.Sphere, "Broadleaf crown", tree, p,
                         new Vector3(Random.Range(1.55f, 2.1f), Random.Range(1.2f, 1.7f), Random.Range(1.45f, 2.0f)), leaves);
-                    foliage.GetComponent<Collider>().enabled = false;
+                    Collider foliageCollider = foliage.GetComponent<Collider>();
+                    if (foliageCollider != null) foliageCollider.enabled = false;
                 }
                 for (int apple = 0; apple < 7; apple++)
                 {
                     float angle = Random.Range(0f, Mathf.PI * 2f);
                     Vector3 p = new Vector3(Mathf.Cos(angle) * Random.Range(1.0f, 1.65f), Random.Range(3.45f, 5.0f), Mathf.Sin(angle) * Random.Range(1.0f, 1.65f));
                     Transform berry = Part(PrimitiveType.Sphere, "Wind-fallen red fruit", tree, p, Vector3.one * Random.Range(0.16f, 0.23f), fruit);
-                    berry.GetComponent<Collider>().enabled = false;
+                    Collider fruitCollider = berry.GetComponent<Collider>();
+                    if (fruitCollider != null) fruitCollider.enabled = false;
                 }
             }
         }
         Random.state = old;
+    }
+
+    private static bool HasCompleteOrchard(Transform root)
+    {
+        int treeCount = 0;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform tree = root.GetChild(i);
+            if (tree.name != "Fruit Orchard Tree" && tree.name != "Leafless Orchard Tree") continue;
+            treeCount++;
+            if (tree.Find("Orchard trunk with collision") == null) return false;
+            int crowns = 0;
+            int branches = 0;
+            int fruitCount = 0;
+            for (int child = 0; child < tree.childCount; child++)
+            {
+                string name = tree.GetChild(child).name;
+                if (name == "Broadleaf crown") crowns++;
+                else if (name == "Snapped dead branch") branches++;
+                else if (name == "Wind-fallen red fruit") fruitCount++;
+            }
+            if (tree.name == "Fruit Orchard Tree" && (crowns < 5 || fruitCount < 7)) return false;
+            if (tree.name == "Leafless Orchard Tree" && branches < 5) return false;
+        }
+        return treeCount == 6;
+    }
+
+    private static void RemoveOrchardTrees(Transform root)
+    {
+        for (int i = root.childCount - 1; i >= 0; i--)
+        {
+            Transform tree = root.GetChild(i);
+            if (tree.name == "Fruit Orchard Tree" || tree.name == "Leafless Orchard Tree")
+                Object.DestroyImmediate(tree.gameObject);
+        }
     }
 
     private static void AddFieldPolishPass(Scene scene)
