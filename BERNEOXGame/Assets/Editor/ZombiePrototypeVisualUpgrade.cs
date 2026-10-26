@@ -32,6 +32,7 @@ public static class ZombiePrototypeVisualUpgrade
 
     private static void RepairPartialFieldPass()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         Scene scene = EditorSceneManager.GetSceneByPath(ScenePath);
         if (!scene.IsValid() || !scene.isLoaded || !HasFieldLifePass(scene) || !NeedsFieldLifeRepair(scene)) return;
         AddFieldLifePass(scene);
@@ -803,7 +804,9 @@ public static class ZombiePrototypeVisualUpgrade
             if (tree.name == "Fruit Orchard Tree" && (crowns < 5 || fruitCount < 7)) return false;
             if (tree.name == "Leafless Orchard Tree" && branches < 5) return false;
         }
-        return treeCount == 6;
+        // The intended placement exclusions leave three trees in the orchard array.
+        // Requiring six made every editor reload destroy and recreate the same trees.
+        return treeCount >= 3;
     }
 
     private static void RemoveOrchardTrees(Transform root)

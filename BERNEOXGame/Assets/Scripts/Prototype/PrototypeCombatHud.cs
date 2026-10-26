@@ -23,6 +23,15 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private Text healthValue;
     private Text zombieCount;
     private Text resourceCount;
+    private GameObject objectivePanel;
+    private RectTransform objectiveRect;
+    private CanvasGroup objectiveCanvasGroup;
+    private Image objectiveAccent;
+    private Text objectiveTitle;
+    private Text objectiveDetail;
+    private string lastObjectiveTitle;
+    private string lastObjectiveDetail;
+    private Coroutine objectiveTransition;
     private Text attackLabel;
     private Text[] inventorySlotLabels = new Text[PrototypeResourceInventory.SlotCount];
     private Text[] quickbarLabels = new Text[5];
@@ -134,6 +143,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
             if (Keyboard.current.digit5Key.wasPressedThisFrame) SelectQuickbarSlot(4);
         }
         if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
+        UpdateObjective();
         if (buildingStatus != null && shelterBuilder != null && shelterBuilder.IsPlacing)
             buildingStatus.text = shelterBuilder.PlacementStatus;
         if (buildingControls != null && shelterBuilder != null && !shelterBuilder.IsPlacing)
@@ -166,6 +176,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         RectTransform root = canvasObject.GetComponent<RectTransform>();
         BuildHealthPanel(root);
         BuildZombieCounter(root);
+        BuildObjectivePanel(root);
         BuildResourceCounter(root);
         BuildAttackButton(root);
         BuildInventoryButton(root);
@@ -189,6 +200,122 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         resourceCount = MakeText(panel, "Resource Counter", "MADERA 0   PIEDRA 0   FIBRA 0   CHATARRA 0   COMIDA 0", 15, FontStyle.Bold, Color.white);
         resourceCount.alignment = TextAnchor.MiddleCenter;
         Anchor(resourceCount.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-20f, -8f));
+    }
+
+    private void BuildObjectivePanel(RectTransform root)
+    {
+        RectTransform panel = NewRect(root, "Survival Objective Panel");
+        Anchor(panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -130f), new Vector2(690f, 78f));
+        Image background = panel.gameObject.AddComponent<Image>();
+        background.color = Ink;
+        background.raycastTarget = false;
+        objectivePanel = panel.gameObject;
+        objectiveRect = panel;
+        objectiveCanvasGroup = panel.gameObject.AddComponent<CanvasGroup>();
+        objectiveCanvasGroup.alpha = 0f;
+
+        RectTransform accent = NewRect(panel, "Objective Phase Accent");
+        Anchor(accent, new Vector2(0f, 0.18f), new Vector2(0f, 0.82f), new Vector2(15f, 0f), new Vector2(5f, 0f));
+        objectiveAccent = accent.gameObject.AddComponent<Image>();
+        objectiveAccent.color = Violet;
+        objectiveAccent.raycastTarget = false;
+
+        objectiveTitle = MakeText(panel, "Objective Title", "REÚNE MATERIAL PARA TU ARMA", 18, FontStyle.Bold, Color.white);
+        Anchor(objectiveTitle.rectTransform, new Vector2(0.06f, 0.48f), new Vector2(0.96f, 0.94f), Vector2.zero, Vector2.zero);
+        objectiveTitle.alignment = TextAnchor.MiddleLeft;
+        objectiveTitle.raycastTarget = false;
+
+        objectiveDetail = MakeText(panel, "Objective Detail", "BATE: 6 MADERA + 2 FIBRA", 14, FontStyle.Bold, new Color(0.86f, 0.82f, 0.93f, 1f));
+        Anchor(objectiveDetail.rectTransform, new Vector2(0.06f, 0.08f), new Vector2(0.96f, 0.52f), Vector2.zero, Vector2.zero);
+        objectiveDetail.alignment = TextAnchor.MiddleLeft;
+        objectiveDetail.raycastTarget = false;
+    }
+
+    private void UpdateObjective()
+    {
+        if (objectivePanel == null || playerHealth == null) return;
+        if (objectivePanel.activeSelf != playerHealth.IsAlive)
+            objectivePanel.SetActive(playerHealth.IsAlive);
+        if (!playerHealth.IsAlive) return;
+
+        string title;
+        string detail;
+        Color phaseColor;
+        if (hordeDirector != null && hordeDirector.HordeActive)
+        {
+            title = "DEFIENDE EL CAMPAMENTO";
+            detail = "QUEDAN " + hordeDirector.LivingZombies + " ZOMBIS · ATACA Y SIGUE EN MOVIMIENTO";
+            phaseColor = Coral;
+        }
+        else if (hordeDirector != null && hordeDirector.Round > 0)
+        {
+            title = "RONDA COMPLETADA";
+            detail = "RECOGE EL BOTÍN Y REPARA TU REFUGIO ANTES DE LA SIGUIENTE HORDA";
+            phaseColor = Mint;
+        }
+        else
+        {
+            int wood = inventory != null ? inventory.GetAmount(PrototypeResourceType.Wood) : 0;
+            int fiber = inventory != null ? inventory.GetAmount(PrototypeResourceType.Fiber) : 0;
+            bool hasBat = inventory != null && inventory.GetAmount(PrototypeInventoryItem.Bat) > 0;
+            bool hasAxe = inventory != null && inventory.GetAmount(PrototypeInventoryItem.Axe) > 0;
+            bool batReady = wood >= 6 && fiber >= 2;
+            bool axeReady = inventory != null && wood >= 4
+                && inventory.GetAmount(PrototypeResourceType.Stone) >= 3 && fiber >= 2;
+
+            if (hasBat || hasAxe)
+            {
+                title = "PREPÁRATE PARA LA PRIMERA HORDA";
+                bool equipped = meleeAttack != null &&
+                    (meleeAttack.EquippedWeapon == PrototypeWeapon.Bat && hasBat
+                     || meleeAttack.EquippedWeapon == PrototypeWeapon.Axe && hasAxe);
+                detail = equipped ? "TU ARMA ESTÁ LISTA · EXPLORA Y PREPÁRATE" : "EQUIPA EL ARMA EN LA BARRA RÁPIDA";
+            }
+            else if (batReady || axeReady)
+            {
+                title = batReady ? "FABRICA UN BATE" : "FABRICA UN HACHA";
+                detail = "VE A LA MESA DE TRABAJO Y PULSA FABRICAR";
+            }
+            else
+            {
+                title = "REÚNE MATERIAL PARA TU ARMA";
+                detail = "BATE: MADERA " + Mathf.Min(wood, 6) + "/6 · FIBRA " + Mathf.Min(fiber, 2) + "/2";
+            }
+            phaseColor = Violet;
+        }
+
+        bool contentChanged = lastObjectiveTitle != title || lastObjectiveDetail != detail;
+        if (!contentChanged) return;
+        objectiveTitle.text = title;
+        objectiveDetail.text = detail;
+        objectiveAccent.color = phaseColor;
+        if (objectiveTransition != null) StopCoroutine(objectiveTransition);
+        objectiveTransition = StartCoroutine(AnimateObjective(lastObjectiveTitle == null));
+        lastObjectiveTitle = title;
+        lastObjectiveDetail = detail;
+    }
+
+    private IEnumerator AnimateObjective(bool firstAppearance)
+    {
+        Vector2 restingPosition = objectiveRect.anchoredPosition;
+        float startingAlpha = firstAppearance ? 0f : 0.58f;
+        float rise = firstAppearance ? 10f : 4f;
+        objectiveCanvasGroup.alpha = startingAlpha;
+        objectiveRect.anchoredPosition = restingPosition + Vector2.up * rise;
+        const float duration = 0.24f;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - progress, 3f);
+            objectiveCanvasGroup.alpha = Mathf.Lerp(startingAlpha, 1f, eased);
+            objectiveRect.anchoredPosition = Vector2.Lerp(restingPosition + Vector2.up * rise, restingPosition, eased);
+            yield return null;
+        }
+        objectiveCanvasGroup.alpha = 1f;
+        objectiveRect.anchoredPosition = restingPosition;
+        objectiveTransition = null;
     }
 
     private void BuildInventoryButton(RectTransform root)
