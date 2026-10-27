@@ -16,10 +16,13 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
     private bool hordeActive;
     private float nextHordeAt;
     private int livingZombies;
+    private float runStartedAt;
 
     public int Round { get; private set; }
     public bool HordeActive => hordeActive;
     public int LivingZombies => livingZombies;
+    public int ZombiesDefeated { get; private set; }
+    public float RunElapsedSeconds => Mathf.Max(0f, Time.time - runStartedAt);
     public float TimeUntilNextHorde => Mathf.Max(0f, nextHordeAt - Time.time);
     public string StatusText
     {
@@ -35,6 +38,11 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
     {
         player = playerHealth;
         zombieTemplate = template;
+    }
+
+    private void Awake()
+    {
+        runStartedAt = Time.time;
     }
 
     public void SetDormantZombies(PrototypeZombieEnemy[] zombies) => dormantZombies = zombies;
@@ -92,6 +100,7 @@ public sealed class PrototypeHordeDirector : MonoBehaviour
     private void OnZombieDefeated(PrototypeZombieEnemy enemy)
     {
         enemy.Defeated -= OnZombieDefeated;
+        ZombiesDefeated++;
         livingZombies = Mathf.Max(0, livingZombies - 1);
         if (livingZombies > 0) return;
         hordeActive = false;

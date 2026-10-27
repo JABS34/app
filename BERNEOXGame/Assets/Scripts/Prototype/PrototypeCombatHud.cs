@@ -1177,16 +1177,26 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         defeatOverlay.alpha = 0f;
 
         RectTransform card = NewRect(overlay, "Defeat Card");
-        Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(680f, 390f));
+        Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(700f, 520f));
         Image cardSurface = card.gameObject.AddComponent<Image>();
         cardSurface.color = Ink;
 
         Text title = MakeText(card, "Defeat Title", "TE HAN ALCANZADO", 38, FontStyle.Bold, Color.white);
-        Anchor(title.rectTransform, new Vector2(0.08f, 0.57f), new Vector2(0.92f, 0.9f), Vector2.zero, Vector2.zero);
+        Anchor(title.rectTransform, new Vector2(0.08f, 0.70f), new Vector2(0.92f, 0.94f), Vector2.zero, Vector2.zero);
         title.alignment = TextAnchor.MiddleCenter;
-        Text detail = MakeText(card, "Defeat Detail", "Vuelve a intentarlo y despeja la zona.", 22, FontStyle.Normal, new Color(0.82f, 0.77f, 0.9f, 1f));
-        Anchor(detail.rectTransform, new Vector2(0.08f, 0.4f), new Vector2(0.92f, 0.58f), Vector2.zero, Vector2.zero);
+        Text detail = MakeText(card, "Defeat Detail", "La partida terminó. Este fue tu resultado:", 21, FontStyle.Normal, new Color(0.82f, 0.77f, 0.9f, 1f));
+        Anchor(detail.rectTransform, new Vector2(0.08f, 0.58f), new Vector2(0.92f, 0.69f), Vector2.zero, Vector2.zero);
         detail.alignment = TextAnchor.MiddleCenter;
+
+        int rounds = hordeDirector != null ? hordeDirector.Round : 0;
+        int defeatedZombies = hordeDirector != null ? hordeDirector.ZombiesDefeated : 0;
+        float elapsed = hordeDirector != null ? hordeDirector.RunElapsedSeconds : 0f;
+        Text stats = MakeText(card, "Defeat Run Summary",
+            "RONDA ALCANZADA  " + rounds + "   ·   ZOMBIS DERROTADOS  " + defeatedZombies
+            + "\nTIEMPO SOBREVIVIDO  " + FormatRunTime(elapsed),
+            20, FontStyle.Bold, new Color(0.88f, 0.84f, 0.95f, 1f));
+        Anchor(stats.rectTransform, new Vector2(0.08f, 0.36f), new Vector2(0.92f, 0.55f), Vector2.zero, Vector2.zero);
+        stats.alignment = TextAnchor.MiddleCenter;
 
         Button retry = CreateRetryButton(card);
         retry.onClick.AddListener(() => SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex));
@@ -1210,7 +1220,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         GameObject go = new GameObject("Retry Button", typeof(RectTransform), typeof(Image), typeof(Button));
         RectTransform rect = go.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
-        Anchor(rect, new Vector2(0.5f, 0.2f), new Vector2(0.5f, 0.2f), Vector2.zero, new Vector2(370f, 78f));
+        Anchor(rect, new Vector2(0.5f, 0.17f), new Vector2(0.5f, 0.17f), Vector2.zero, new Vector2(390f, 78f));
         Image image = go.GetComponent<Image>();
         image.color = Violet;
         Button button = go.GetComponent<Button>();
@@ -1219,6 +1229,12 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         label.alignment = TextAnchor.MiddleCenter;
         return button;
+    }
+
+    private static string FormatRunTime(float seconds)
+    {
+        int wholeSeconds = Mathf.FloorToInt(Mathf.Max(0f, seconds));
+        return (wholeSeconds / 60).ToString("00") + ":" + (wholeSeconds % 60).ToString("00");
     }
 
     private void EnsureEventSystem()
