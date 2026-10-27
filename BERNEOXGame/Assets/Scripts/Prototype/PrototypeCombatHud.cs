@@ -48,6 +48,17 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private CanvasGroup hitMarker;
     private Coroutine hitMarkerPulse;
     private CanvasGroup defeatOverlay;
+    private Button pauseButton;
+    private GameObject pauseOverlay;
+    private CanvasGroup pauseCanvasGroup;
+    private RectTransform pauseCardRect;
+    private Text pauseSummary;
+    private GameObject pauseConfirmationOverlay;
+    private Text pauseConfirmationTitle;
+    private Text pauseConfirmationDetail;
+    private Text pauseConfirmationActionLabel;
+    private PendingPauseAction pendingPauseAction;
+    private Coroutine pauseTransition;
     private GameObject inventoryOverlay;
     private GameObject craftingOverlay;
     private GameObject buildingOverlay;
@@ -55,6 +66,13 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     private Text buildingStatus;
     private float displayedHealth = 1f;
     private Coroutine attackPulse;
+
+    private enum PendingPauseAction
+    {
+        None,
+        Restart,
+        ReturnToHub
+    }
 
     private static readonly Color Ink = new Color(0.055f, 0.035f, 0.11f, 0.88f);
     private static readonly Color Violet = new Color(0.55f, 0.32f, 0.92f, 1f);
@@ -125,6 +143,12 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         displayedHealth = Mathf.MoveTowards(displayedHealth, target, Time.unscaledDeltaTime * 1.7f);
         healthFill.fillAmount = displayedHealth;
         healthFill.color = Color.Lerp(Coral, Mint, Mathf.InverseLerp(0.12f, 0.9f, displayedHealth));
+        if (pauseOverlay != null && pauseOverlay.activeSelf)
+        {
+            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                HandleBackInput();
+            return;
+        }
         if (attackLabel != null) attackLabel.text = pickupInteractor != null ? pickupInteractor.ActionLabel : "ATACAR";
         if (sprintLabel != null && playerMovement != null)
             sprintLabel.text = playerMovement.IsSprinting ? "CORRIENDO" : playerMovement.CurrentStamina <= 1f ? "SIN RESISTENCIA" : "MANTENER · CORRER";
@@ -142,6 +166,8 @@ public sealed class PrototypeCombatHud : MonoBehaviour
             if (Keyboard.current.digit4Key.wasPressedThisFrame) SelectQuickbarSlot(3);
             if (Keyboard.current.digit5Key.wasPressedThisFrame) SelectQuickbarSlot(4);
         }
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            HandleBackInput();
         if (zombieCount != null && hordeDirector != null) zombieCount.text = hordeDirector.StatusText;
         UpdateObjective();
         if (buildingStatus != null && shelterBuilder != null && shelterBuilder.IsPlacing)
@@ -153,7 +179,6 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         {
             if (Keyboard.current.rKey.wasPressedThisFrame) shelterBuilder.RotatePlacement();
             if (Keyboard.current.enterKey.wasPressedThisFrame) TryPlaceShelterPiece();
-            if (Keyboard.current.escapeKey.wasPressedThisFrame) CancelShelterPlacement();
         }
         if (toastGroup != null && toastGroup.alpha > 0f && Time.unscaledTime > toastVisibleUntil)
             toastGroup.alpha = Mathf.MoveTowards(toastGroup.alpha, 0f, Time.unscaledDeltaTime * 2.5f);
@@ -187,7 +212,249 @@ public sealed class PrototypeCombatHud : MonoBehaviour
         BuildInventoryOverlay(root);
         BuildCraftingOverlay(root);
         BuildConstructionOverlay(root);
+        BuildPauseControl(root);
+        BuildPauseOverlay(root);
         BuildToast(root);
+    }
+
+    private void BuildPauseControl(RectTransform root)
+    {
+        GameObject buttonObject = new GameObject("Pause Button", typeof(RectTransform), typeof(Image), typeof(Button));
+        RectTransform rect = buttonObject.GetComponent<RectTransform>();
+        rect.SetParent(root, false);
+        Anchor(rect, Vector2.one, Vector2.one, new Vector2(-55f, -55f), new Vector2(96f, 96f));
+        Image face = buttonObject.GetComponent<Image>();
+        face.color = new Color(Ink.r, Ink.g, Ink.b, 0.94f);
+        pauseButton = buttonObject.GetComponent<Button>();
+        pauseButton.targetGraphic = face;
+        ColorBlock colors = pauseButton.colors;
+        colors.normalColor = face.color;
+        colors.highlightedColor = new Color(0.91f, 0.84f, 1f, 1f);
+        colors.pressedColor = new Color(0.79f, 0.68f, 0.96f, 1f);
+        colors.fadeDuration = 0.08f;
+        pauseButton.colors = colors;
+        pauseButton.onClick.AddListener(PauseGame);
+
+        for (int i = 0; i < 2; i++)
+        {
+            RectTransform bar = NewRect(buttonObject.transform, "Pause Icon Bar " + i);
+            Anchor(bar, new Vector2(0.5f, 0.63f), new Vector2(0.5f, 0.63f), new Vector2(i == 0 ? -6f : 6f, 0f), new Vector2(6f, 25f));
+            Image barImage = bar.gameObject.AddComponent<Image>();
+            barImage.color = new Color(0.94f, 0.89f, 1f, 1f);
+            barImage.raycastTarget = false;
+        }
+
+        Text label = MakeText(buttonObject.transform, "Pause Button Label", "PAUSA", 11, FontStyle.Bold, Color.white);
+        Anchor(label.rectTransform, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.34f), Vector2.zero, Vector2.zero);
+        label.alignment = TextAnchor.MiddleCenter;
+
+        // Leave a dedicated gap beside the pause target in the top-right HUD row.
+        if (zombieCount != null)
+        {
+            RectTransform counter = zombieCount.rectTransform.parent as RectTransform;
+            if (counter != null)
+                Anchor(counter, Vector2.one, Vector2.one, new Vector2(-132f, -42f), new Vector2(315f, 76f));
+        }
+    }
+
+    private void BuildPauseOverlay(RectTransform root)
+    {
+        RectTransform overlay = NewRect(root, "Pause Overlay");
+        overlay.anchorMin = Vector2.zero;
+        overlay.anchorMax = Vector2.one;
+        overlay.offsetMin = Vector2.zero;
+        overlay.offsetMax = Vector2.zero;
+        overlay.SetAsLastSibling();
+        pauseOverlay = overlay.gameObject;
+        Image scrim = pauseOverlay.AddComponent<Image>();
+        scrim.color = new Color(0.018f, 0.012f, 0.038f, 0.82f);
+        pauseCanvasGroup = pauseOverlay.AddComponent<CanvasGroup>();
+        pauseCanvasGroup.alpha = 0f;
+
+        pauseCardRect = NewRect(overlay, "Pause Card");
+        Anchor(pauseCardRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(720f, 560f));
+        pauseCardRect.gameObject.AddComponent<Image>().color = Ink;
+
+        Text title = MakeText(pauseCardRect, "Pause Title", "PAUSA", 36, FontStyle.Bold, Color.white);
+        Anchor(title.rectTransform, new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.96f), Vector2.zero, Vector2.zero);
+        title.alignment = TextAnchor.MiddleCenter;
+
+        pauseSummary = MakeText(pauseCardRect, "Pause Session Summary", "RONDA 0 · PREPARACIÓN\nVIDA 100 / 100", 18, FontStyle.Bold, new Color(0.86f, 0.82f, 0.93f, 1f));
+        Anchor(pauseSummary.rectTransform, new Vector2(0.08f, 0.68f), new Vector2(0.92f, 0.82f), Vector2.zero, Vector2.zero);
+        pauseSummary.alignment = TextAnchor.MiddleCenter;
+
+        Button resume = CreateOverlayButton(pauseCardRect, "Resume Game", "CONTINUAR", new Vector2(0f, 112f), new Vector2(430f, 68f), Violet);
+        resume.onClick.AddListener(ResumeGame);
+        Button restart = CreateOverlayButton(pauseCardRect, "Restart Game", "REINICIAR PARTIDA", new Vector2(0f, 24f), new Vector2(430f, 68f), new Color(0.29f, 0.24f, 0.39f, 1f));
+        restart.onClick.AddListener(() => RequestPauseConfirmation(PendingPauseAction.Restart));
+        int hubBuildIndex = SceneUtility.GetBuildIndexByScenePath("Assets/Scenes/BERNEOXHub.unity");
+        Button hub = CreateOverlayButton(pauseCardRect, "Return to Catalog",
+            hubBuildIndex >= 0 ? "VOLVER AL CATÁLOGO" : "CATÁLOGO NO DISPONIBLE",
+            new Vector2(0f, -64f), new Vector2(430f, 68f), new Color(0.30f, 0.39f, 0.34f, 1f));
+        hub.interactable = hubBuildIndex >= 0;
+        hub.onClick.AddListener(() => RequestPauseConfirmation(PendingPauseAction.ReturnToHub));
+        Text hint = MakeText(pauseCardRect, "Pause Hint", "LA PARTIDA SE DETUVO", 13, FontStyle.Bold, new Color(0.72f, 0.68f, 0.79f, 1f));
+        Anchor(hint.rectTransform, new Vector2(0.08f, 0.04f), new Vector2(0.92f, 0.14f), Vector2.zero, Vector2.zero);
+        hint.alignment = TextAnchor.MiddleCenter;
+
+        RectTransform confirm = NewRect(overlay, "Pause Confirmation Overlay");
+        confirm.anchorMin = Vector2.zero;
+        confirm.anchorMax = Vector2.one;
+        confirm.offsetMin = Vector2.zero;
+        confirm.offsetMax = Vector2.zero;
+        confirm.SetAsLastSibling();
+        pauseConfirmationOverlay = confirm.gameObject;
+        pauseConfirmationOverlay.AddComponent<Image>().color = new Color(0.018f, 0.012f, 0.038f, 0.96f);
+        RectTransform confirmCard = NewRect(confirm, "Pause Confirmation Card");
+        Anchor(confirmCard, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(660f, 340f));
+        confirmCard.gameObject.AddComponent<Image>().color = Ink;
+        pauseConfirmationTitle = MakeText(confirmCard, "Pause Confirmation Title", "¿REINICIAR PARTIDA?", 29, FontStyle.Bold, Color.white);
+        Anchor(pauseConfirmationTitle.rectTransform, new Vector2(0.06f, 0.67f), new Vector2(0.94f, 0.91f), Vector2.zero, Vector2.zero);
+        pauseConfirmationTitle.alignment = TextAnchor.MiddleCenter;
+        pauseConfirmationDetail = MakeText(confirmCard, "Pause Confirmation Detail", "Se perderán los recursos de esta partida.", 18, FontStyle.Normal, new Color(0.86f, 0.82f, 0.93f, 1f));
+        Anchor(pauseConfirmationDetail.rectTransform, new Vector2(0.08f, 0.45f), new Vector2(0.92f, 0.66f), Vector2.zero, Vector2.zero);
+        pauseConfirmationDetail.alignment = TextAnchor.MiddleCenter;
+        Button cancel = CreateOverlayButton(confirmCard, "Cancel Pause Action", "CANCELAR", new Vector2(-145f, -82f), new Vector2(220f, 64f), new Color(0.29f, 0.24f, 0.39f, 1f));
+        cancel.onClick.AddListener(CancelPauseConfirmation);
+        Button confirmAction = CreateOverlayButton(confirmCard, "Confirm Pause Action", "REINICIAR", new Vector2(145f, -82f), new Vector2(220f, 64f), Coral);
+        pauseConfirmationActionLabel = confirmAction.GetComponentInChildren<Text>();
+        confirmAction.onClick.AddListener(ConfirmPauseAction);
+        pauseConfirmationOverlay.SetActive(false);
+        pauseOverlay.SetActive(false);
+    }
+
+    private void PauseGame()
+    {
+        if (playerHealth == null || !playerHealth.IsAlive || pauseOverlay == null || pauseOverlay.activeSelf) return;
+        CloseGameplayPanelsForPause();
+        if (playerMovement != null) playerMovement.SetSprintHeld(false);
+        RefreshPauseSummary();
+        pendingPauseAction = PendingPauseAction.None;
+        pauseConfirmationOverlay.SetActive(false);
+        pauseOverlay.SetActive(true);
+        Time.timeScale = 0f;
+        if (pauseTransition != null) StopCoroutine(pauseTransition);
+        pauseTransition = StartCoroutine(AnimatePauseOverlay(true));
+    }
+
+    private void ResumeGame()
+    {
+        if (pauseConfirmationOverlay != null) pauseConfirmationOverlay.SetActive(false);
+        pendingPauseAction = PendingPauseAction.None;
+        if (pauseTransition != null) StopCoroutine(pauseTransition);
+        pauseTransition = StartCoroutine(AnimatePauseOverlay(false));
+        Time.timeScale = 1f;
+    }
+
+    private void HandleBackInput()
+    {
+        if (pauseOverlay != null && pauseOverlay.activeSelf)
+        {
+            if (pauseConfirmationOverlay != null && pauseConfirmationOverlay.activeSelf) CancelPauseConfirmation();
+            else ResumeGame();
+            return;
+        }
+        if (shelterBuilder != null && shelterBuilder.IsPlacing)
+        {
+            CancelShelterPlacement();
+            return;
+        }
+        if ((inventoryOverlay != null && inventoryOverlay.activeSelf)
+            || (craftingOverlay != null && craftingOverlay.activeSelf)
+            || (buildingOverlay != null && buildingOverlay.activeSelf))
+        {
+            ClosePanels();
+            if (buildingOverlay != null) buildingOverlay.SetActive(false);
+            return;
+        }
+        PauseGame();
+    }
+
+    private void CloseGameplayPanelsForPause()
+    {
+        if (inventoryOverlay != null) inventoryOverlay.SetActive(false);
+        if (craftingOverlay != null) craftingOverlay.SetActive(false);
+        if (buildingOverlay != null) buildingOverlay.SetActive(false);
+        if (buildingControls != null) buildingControls.SetActive(false);
+        shelterBuilder?.CancelPlacement();
+    }
+
+    private void RefreshPauseSummary()
+    {
+        if (pauseSummary == null) return;
+        int round = hordeDirector != null ? hordeDirector.Round : 0;
+        string phase = hordeDirector != null && hordeDirector.HordeActive ? "HORDA ACTIVA" : "PREPARACIÓN";
+        int health = playerHealth != null ? Mathf.CeilToInt(playerHealth.CurrentHealth) : 0;
+        int maximum = playerHealth != null ? Mathf.CeilToInt(playerHealth.MaximumHealth) : 0;
+        int wood = inventory != null ? inventory.GetAmount(PrototypeResourceType.Wood) : 0;
+        int stone = inventory != null ? inventory.GetAmount(PrototypeResourceType.Stone) : 0;
+        pauseSummary.text = "RONDA " + round + " · " + phase + "\nVIDA " + health + " / " + maximum + " · MADERA " + wood + " · PIEDRA " + stone;
+    }
+
+    private void RequestPauseConfirmation(PendingPauseAction action)
+    {
+        pendingPauseAction = action;
+        bool returning = action == PendingPauseAction.ReturnToHub;
+        pauseConfirmationTitle.text = returning ? "¿VOLVER AL CATÁLOGO?" : "¿REINICIAR PARTIDA?";
+        pauseConfirmationDetail.text = returning
+            ? "Se perderán los recursos de esta partida y volverás al inicio BERNEOX."
+            : "Se perderán los recursos de esta partida.";
+        if (pauseConfirmationActionLabel != null)
+            pauseConfirmationActionLabel.text = returning ? "VOLVER" : "REINICIAR";
+        pauseConfirmationOverlay.SetActive(true);
+    }
+
+    private void CancelPauseConfirmation()
+    {
+        pendingPauseAction = PendingPauseAction.None;
+        if (pauseConfirmationOverlay != null) pauseConfirmationOverlay.SetActive(false);
+    }
+
+    private void ConfirmPauseAction()
+    {
+        if (pendingPauseAction == PendingPauseAction.Restart)
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return;
+        }
+        if (pendingPauseAction == PendingPauseAction.ReturnToHub)
+        {
+            int hubBuildIndex = SceneUtility.GetBuildIndexByScenePath("Assets/Scenes/BERNEOXHub.unity");
+            if (hubBuildIndex >= 0)
+                SceneManager.LoadScene(hubBuildIndex);
+            else
+                ShowToast("EL CATÁLOGO NO ESTÁ INCLUIDO EN ESTA COMPILACIÓN");
+        }
+    }
+
+    private IEnumerator AnimatePauseOverlay(bool opening)
+    {
+        if (pauseOverlay == null || pauseCardRect == null || pauseCanvasGroup == null) yield break;
+        pauseOverlay.SetActive(true);
+        float duration = 0.20f;
+        float startAlpha = pauseCanvasGroup.alpha;
+        Vector3 startScale = pauseCardRect.localScale;
+        Vector3 endScale = opening ? Vector3.one : Vector3.one * 0.97f;
+        float targetAlpha = opening ? 1f : 0f;
+        if (opening)
+        {
+            pauseCardRect.localScale = Vector3.one * 0.97f;
+            startScale = pauseCardRect.localScale;
+        }
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - Mathf.Pow(1f - t, 4f);
+            pauseCanvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, eased);
+            pauseCardRect.localScale = Vector3.Lerp(startScale, endScale, eased);
+            yield return null;
+        }
+        pauseCanvasGroup.alpha = targetAlpha;
+        pauseCardRect.localScale = opening ? Vector3.one : Vector3.one * 0.97f;
+        if (!opening) pauseOverlay.SetActive(false);
+        pauseTransition = null;
     }
 
     private void BuildResourceCounter(RectTransform root)
@@ -893,6 +1160,7 @@ public sealed class PrototypeCombatHud : MonoBehaviour
     {
         if (attackButton != null) attackButton.interactable = false;
         if (sprintButton != null) sprintButton.interactable = false;
+        if (pauseButton != null) pauseButton.interactable = false;
         if (playerMovement != null) playerMovement.SetSprintHeld(false);
         if (defeatOverlay != null) return;
 

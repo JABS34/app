@@ -1,6 +1,6 @@
 # BERNEOX project progress
 
-Updated: 2026-10-21
+Updated: 2026-10-27
 
 ## Confirmed product decisions
 
@@ -29,6 +29,7 @@ Updated: 2026-10-21
 - A second cumulative visual pass is prepared in the Editor scene tool: two ruined village buildings, a collapsed checkpoint, cracked road, broken fences, street props, procedural grunge surface textures, animated dry grass, drifting ash, chimney smoke, flickering lights, a backpack axe, and a more hunched zombie idle. It is idempotent and saves a separate scene root; Unity must leave Play mode before the callback can apply it. The visual source uses procedural geometry and textures; production-grade rigged characters and environment assets remain a later art pass.
 - The V6 field pass generator adds procedural ground normal relief, a stone well, farm water tower, broadleaf fruit trees, bare trees, and trunk collisions. Unity previously stopped while building the well because the helper intentionally removed its primitive collider. The generator now adds a mesh collider and can repair/complete a partial V6 pass without duplicating the structures. This repair has compiled but is waiting for Unity's software terms to be accepted in its visible Editor before the saved scene can be confirmed.
 - The combat HUD has a five-slot quickbar, touch/1–5 selection, weapon selection from knife/bat/axe slots, and backpack/hammer icons; the joystick has a larger touch activation area and clearer layered feedback.
+- The combat HUD now has a pause control for touch and Escape/back input, a session summary, continue/restart/return-to-catalog actions, and a confirmation before discarding the session. This UI change still needs a hands-on Unity review.
 - The player now accelerates and brakes smoothly, can sprint with Shift or a press-and-hold mobile button, and uses a regenerating stamina pool. The third-person camera supports a right-side touch drag or right mouse drag, eases its orbit and follow, and shortens its distance around obstacles. Player animation blends into walk/run gait, leans into movement, and has wind-up/strike melee, damage response, and a gradual defeat pose. Zombies recoil and flinch when hit. A central hit marker confirms a successful zombie strike; the HUD shows stamina and sprint state. These adjustments are source-complete but need hands-on Unity/Android play review.
 - Fixed a Unity 6 startup exception in the HUD by switching its built-in font lookup to `LegacyRuntime.ttf`.
 - The scene builder preserves `BERNEOXHub` and `SampleScene`, and opens the existing ZombiePrototype rather than replacing it.
@@ -43,6 +44,6 @@ Updated: 2026-10-21
 
 ## Prioritized next tasks
 
-1. Let Unity reimport the scene and compile the visual upgrade; inspect the Console and review the player, visible zombies, forest readability, and touch HUD in Play.
-2. Verify construction placement, enemy targeting, repair, gathering, inventory limits, crafting, horde timing, camera, and mobile performance.
+1. Let Unity reimport the scene and inspect the Console; review the player, visible zombies, forest readability, pause flow, and touch HUD in Play.
+2. Review construction placement, enemy targeting, repair, gathering, inventory limits, crafting, horde timing, camera, and mobile performance.
 3. Tune round difficulty and connect Zombie Survival to the launcher after the mode has been visually checked and feels playable.
